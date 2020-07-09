@@ -1,2 +1,17 @@
-## Track page
-<a>https://tianchi.aliyun.com/competition/entrance/531809/information</a>
+# [天池交通状况预测比赛](https://tianchi.aliyun.com/competition/entrance/531809/information)
+
+### Taks1: Scene Recognition
+Directly classfy scene images into several traffic status (smooth, congested and slow), based on the deep convolutional features.
+
+
+### Task2: Visual Odometry
+
+|                       Paper                                             |      Year      |                    Code                      |
+|                       :----:                                            |      :--:      |                    :--:                      |
+|[Visual Odometry Revisited: What Should Be Learnt?](https://arxiv.org/abs/1909.09803)            | ICRA2020 |[Pytorch](https://github.com/Huangying-Zhan/DF-VO)|
+|[DeepVO : Towards Visual Odometry with Deep Learning ](http://senwang.gitlab.io/DeepVO/files/wang2017DeepVO.pdf) | ICRA2017 | [Pytorch](https://github.com/ChiWeiHsiao/DeepVO-pytorch)  |
+|[Unsupervised Learning of Depth and Ego-Motion from Video](https://people.eecs.berkeley.edu/~tinghuiz/projects/SfMLearner/cvpr17_sfm_final.pdf)| CVPR2017 |[Pytorch](https://github.com/ClementPinard/SfmLearner-Pytorch) [TensorFlow](https://github.com/tinghuiz/SfMLearner) |
+|[Fast, Robust, Continuous Monocular Egomotion Computation](https://arxiv.org/abs/1602.04886)| ICRA2016| None |
+
+### Task3: Road Lane detection
+[Road lane detection based on hough line detection algorithm](https://github.com/naokishibuya/car-finding-lane-lines)

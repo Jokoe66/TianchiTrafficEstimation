@@ -14,4 +14,13 @@ Directly classfy scene images into several traffic status (smooth, congested and
 |[Fast, Robust, Continuous Monocular Egomotion Computation](https://arxiv.org/abs/1602.04886)| ICRA2016| None |
 
 ### Task3: Road Lane detection
+#### Traditional methods
 [Road lane detection based on hough line detection algorithm](https://github.com/naokishibuya/car-finding-lane-lines)
+
+#### SOTA 
+Refer to [awesome-lane-detection](https://github.com/amusi/awesome-lane-detection)
+|                       Paper                                             |      Year      |                    Code                      |
+|                       :----:                                            |      :--:      |                    :--:                      |
+|[Ultra Fast Structure-aware Deep Lane Detection](https://arxiv.org/abs/2004.11757)            | ECCV2020 |[Pytorch](https://github.com/cfzd/Ultra-Fast-Lane-Detection)|
+|[Inter-Region Affinity Distillation for Road Marking Segmentation](https://arxiv.org/abs/2004.05304)| CVPR2020 | [Pytorch](https://github.com/cardwing/Codes-for-IntRA-KD)|
+|[key points estimation and point instance segmentation approach for lane detection](https://arxiv.org/abs/2002.06604)| arxiv2020 | [Pytorch](https://github.com/koyeongmin/PINet)|

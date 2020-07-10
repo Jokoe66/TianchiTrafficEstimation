@@ -54,14 +54,18 @@ class Classifier(torch.nn.Module):
             self.train()
             for i, data in enumerate(dataloader):
                 imgs = data['imgs']
-                imgs = torch.gather(data['imgs'], -1, 
-                    data['key'].view(-1, 1, 1, 1, 1).expand(
-                        *data['imgs'].shape[:-1], 1))[..., 0]
+                if len(imgs.shape) > 4: # frames
+                    seq_len = imgs.shape[-1]
+                    imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
+                            .view(-1, *imgs.shape[1:4]))
+                else:
+                    seq_len = 1
                 labels = data['label']
+
                 imgs = imgs.to(self.fc.weight.device)
                 labels = labels.to(self.fc.weight.device)
 
-                preds = self(imgs)
+                preds = self(imgs, seq_len)
                 loss = criteria(preds, labels)
                 acc = (preds.argmax(1) == labels).sum().item() / len(labels)
                 if i % kwargs.get('log_iters', 5) == 0:
@@ -82,15 +86,19 @@ class Classifier(torch.nn.Module):
                 f1s = [0] * 3
                 for data in tqdm.tqdm(kwargs.get('val_dataloader')):
                     imgs = data['imgs']
-                    imgs = torch.gather(data['imgs'], -1, 
-                        data['key'].view(-1, 1, 1, 1, 1).expand(
-                            *data['imgs'].shape[:-1], 1))[..., 0]
+                    if len(imgs.shape) > 4: # frames
+                        seq_len = imgs.shape[-1]
+                        imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
+                                .view(-1, *imgs.shape[1:4]))
+                    else:
+                        seq_len = 1
                     labels = data['label']
+
                     imgs = imgs.to(self.fc.weight.device)
                     labels = labels.to(self.fc.weight.device)
 
                     with torch.no_grad():
-                        preds = self(imgs)
+                        preds = self(imgs, seq_len)
 
                     for cls in range(len(tps)):
                         ns[cls] += (labels == cls).sum().item()

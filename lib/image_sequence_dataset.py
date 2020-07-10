@@ -1,15 +1,18 @@
 import json
+import os
 
 from PIL import Image
+import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
 
 class ImageSequenceDataset(Dataset):
 
-    img_root = 'data/amap_traffic_train/'
+    img_root = 'data/amap_traffic_%s/'
     ann_file = 'data/amap_traffic_annotations_%s.json'
 
     def __init__(self, split='train', seq_max_len=5, transform=None):
+        self.img_root = self.img_root % split
         self.ann_file = self.ann_file % split
         self._load_anns()
         if transform:

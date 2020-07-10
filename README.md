@@ -3,6 +3,11 @@
 ### Taks1: Scene Recognition
 Directly classfy scene images into several traffic status (smooth, congested and slow), based on the deep convolutional features.
 
+|       Method        | F1_0 | F1_1 | F1_2 | score |
+|       :---:         | :---:| :---:| :---:| :---: |
+|multi-classification | 0.84 | 0    |  0   | 0.17  |
+|ordinal regression   |      |      |      |       |
+
 
 ### Task2: Visual Odometry
 
@@ -19,6 +24,7 @@ Directly classfy scene images into several traffic status (smooth, congested and
 
 #### SOTA 
 Refer to [awesome-lane-detection](https://github.com/amusi/awesome-lane-detection)
+
 |                       Paper                                             |      Year      |                    Code                      |
 |                       :----:                                            |      :--:      |                    :--:                      |
 |[Ultra Fast Structure-aware Deep Lane Detection](https://arxiv.org/abs/2004.11757)            | ECCV2020 |[Pytorch](https://github.com/cfzd/Ultra-Fast-Lane-Detection)|

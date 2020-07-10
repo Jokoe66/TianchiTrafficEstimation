@@ -19,7 +19,7 @@ class ImageSequenceDataset(Dataset):
             self.transform = transform
         else:
             self.transform = Compose([
-                Resize(size=(720, 1280)),
+                Resize(size=(360, 640)),
                 ToTensor(),
                 Normalize(mean=[123.675, 116.28, 103.53],
                           std=[58.395, 57.12, 57.375]),
@@ -43,7 +43,7 @@ class ImageSequenceDataset(Dataset):
                 if self.transform:
                     img = self.transform(img)
             else:
-                img = torch.zeros(3, 720, 1280)
+                img = torch.zeros(ann['imgs'][0].shape)
             ann['imgs'].append(img)
         ann['imgs'] = torch.stack(ann['imgs'], -1)
 

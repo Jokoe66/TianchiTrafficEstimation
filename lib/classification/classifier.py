@@ -16,18 +16,24 @@ class Classifier(torch.nn.Module):
             p.requires_grad = False
         net.eval()
         self.feat = net
-        self.avg = torch.nn.AdaptiveAvgPool2d((1,1))
-        
+
+        h, w = 9, 16
+        self.pool = torch.nn.Sequential(
+            torch.nn.AdaptiveAvgPool2d((h, w)),
+            torch.nn.Conv2d(2048, 256, 3, 1, 1),
+            torch.nn.ReLU(inplace=True))
+
         hidden_size = kwargs.get('lstm')
-        self.lstm = torch.nn.GRU(2048, hidden_size) if hidden_size else None
-        hidden_size = hidden_size or 2048
+        self.lstm = torch.nn.GRU(256 * h * w, hidden_size) if hidden_size else None
+        hidden_size = hidden_size or (256 * h * w)
+
         self.fc = torch.nn.Linear(hidden_size, num_classes)
 
     def forward(self, input, seq_len=5):
         with torch.no_grad():
             feat = self.feat(input)
         
-        feat = self.avg(feat).view(len(input), -1)
+        feat = self.pool(feat).view(len(input), -1)
         if self.lstm:
             feat = feat.view(seq_len, len(feat)//seq_len, -1)
             feat, h = self.lstm(feat)
@@ -42,10 +48,11 @@ class Classifier(torch.nn.Module):
             momentum=kwargs.get('momentum', 0.9))
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer, kwargs.get('milestones', [3, ]), kwargs.get('gamma', 0.1))
-        criteria = torch.nn.CrossEntropyLoss()
+        class_weights = torch.tensor([3./43, 30./43, 10./43],
+                                     device=self.fc.weight.device)
+        criteria = torch.nn.CrossEntropyLoss(class_weights)
 
-        max_epoch = kwargs.get('max_epoch', 4)
-        best_score = 0
+        max_epoch = kwargs.get('max_epoch', 5)
         save_dir = kwargs.get('save_dir', 'checkpoints')
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
@@ -89,7 +96,7 @@ class Classifier(torch.nn.Module):
                     if len(imgs.shape) > 4: # frames
                         seq_len = imgs.shape[-1]
                         imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
-                                .view(-1, *imgs.shape[1:4]))
+                            .view(-1, *imgs.shape[1:4]))
                     else:
                         seq_len = 1
                     labels = data['label']

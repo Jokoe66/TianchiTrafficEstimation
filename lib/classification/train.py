@@ -17,7 +17,7 @@ if __name__ == '__main__':
                         default=[8, ])
     args = parser.parse_args()
 
-    lstm = None if args.key_frame_only else 512
+    lstm = None if args.key_frame_only else 128
     model = Classifier(lstm=lstm)
     model = model.to(args.device)
 

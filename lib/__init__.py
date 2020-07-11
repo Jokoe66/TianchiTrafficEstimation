@@ -1,4 +1,9 @@
-from .image_sequence_dataset import ImageSequenceDataset
-from .classifier import Classifier
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-__all__ = ['ImageSequenceDataset', 'Classifier']
+from .image_sequence_dataset import ImageSequenceDataset
+from . import classification
+from . import lanedet
+
+__all__ = ['ImageSequenceDataset', ]

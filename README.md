@@ -30,3 +30,25 @@ Refer to [awesome-lane-detection](https://github.com/amusi/awesome-lane-detectio
 |[Ultra Fast Structure-aware Deep Lane Detection](https://arxiv.org/abs/2004.11757)            | ECCV2020 |[Pytorch](https://github.com/cfzd/Ultra-Fast-Lane-Detection)|
 |[Inter-Region Affinity Distillation for Road Marking Segmentation](https://arxiv.org/abs/2004.05304)| CVPR2020 | [Pytorch](https://github.com/cardwing/Codes-for-IntRA-KD)|
 |[key points estimation and point instance segmentation approach for lane detection](https://arxiv.org/abs/2002.06604)| arxiv2020 | [Pytorch](https://github.com/koyeongmin/PINet)|
+
+#### lanedet usage
+lanedet is modified for easier usage from [Ultra-Fast-Lane-Detection](https://github.com/cfzd/Ultra-Fast-Lane-Detection)。
+* The demo code is refactored.
+  * Build 3 APIs in [inference.py](https://github.com/Jokoe66/Ultra-Fast-Lane-Detection/blob/63cafe63b871243818521d7d0ed3e7d044496f53/inference.py) (```init_model```, ```inference_model``` and ```show_result```)
+  * Support single image test by running inference.py（See [run.sh](https://github.com/Jokoe66/Ultra-Fast-Lane-Detection/blob/63cafe63b871243818521d7d0ed3e7d044496f53/run.sh)).
+* The project is refactored to be a package for external calls.
+  ```python
+    from lanedet.utils.config import Config
+    from lanedet.inference import init_model, inference_model, show_result
+    
+    config_file = /path/to/config
+    config = Config.fromfile(config_file)
+    config.test_model = /path/to/model_weight
+    
+    model = init_model(config, 'cuda:0')
+    img_file = /path/to/image
+    result = inference_model(model, img_file)
+    img = show_result(result, img_file)
+    img.save(/path/to/output_image)
+  ```
+

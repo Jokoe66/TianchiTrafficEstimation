@@ -38,18 +38,18 @@ lanedet is modified for easier usage from [Ultra-Fast-Lane-Detection](https://gi
   * Support single image test by running inference.py（See [run.sh](https://github.com/Jokoe66/Ultra-Fast-Lane-Detection/blob/63cafe63b871243818521d7d0ed3e7d044496f53/run.sh)).
 * The project is refactored to be a package for external calls.
   ```python
-    from lanedet.utils.config import Config
-    from lanedet.inference import init_model, inference_model, show_result
-    
-    config_file = /path/to/config
-    config = Config.fromfile(config_file)
-    config.test_model = /path/to/model_weight
-    
-    model = init_model(config, 'cuda:0')
-    img_file = /path/to/image
-    result = inference_model(model, img_file)
-    img = show_result(result, img_file)
-    img.save(/path/to/output_image)
+  from lanedet.utils.config import Config
+  from lanedet.inference import init_model, inference_model, show_result
+
+  config_file = /path/to/config
+  config = Config.fromfile(config_file)
+  config.test_model = /path/to/model_weight
+
+  model = init_model(config, 'cuda:0')
+  img_file = /path/to/image
+  result = inference_model(model, img_file)
+  img = show_result(result, img_file)
+  img.save(/path/to/output_image)
   ```
 ### Task4: Vehicle detection
 Vehicle detection is completed within general object detection pretrained with MS COCO dataset, based on [mmdetection](https://github.com/Jokoe66/mmdetection-1).
@@ -57,25 +57,25 @@ Vehicle detection is completed within general object detection pretrained with M
 #### mmdetection usage
 Refer to mmdetection [docs](https://github.com/Jokoe66/mmdetection-1/blob/master/docs/getting_started.md).
 ```python
-  import cv2
-  import numpy as np
+import cv2
+import numpy as np
 
-  from mmdet.apis import inference
+from mmdet.apis import inference
 
-  config = /path/to/config # e.g. mmdetection/configs/cascade_rcnn/cascade_rcnn_r50_fpn_1x_coco.py
-  checkpoint = /path/to/model/weight # Download from mmdetection model_zoo
+config = /path/to/config # e.g. mmdetection/configs/cascade_rcnn/cascade_rcnn_r50_fpn_1x_coco.py
+checkpoint = /path/to/model/weight # Download from mmdetection model_zoo
 
-  detector = inference.init_detector(config, checkpoint=checkpoint, device='cuda:0')
-  img_file = /path/to/image
-  out = inference.inference_detector(detector, img_file)
+detector = inference.init_detector(config, checkpoint=checkpoint, device='cuda:0')
+img_file = /path/to/image
+out = inference.inference_detector(detector, img_file)
 
-  vehicle_labels = ['car', 'motorcycle', 'bus', 'truck', ]
-  vehicle_ids = [detector.CLASSES.index(label) for label in vehicle_labels]
+vehicle_labels = ['car', 'motorcycle', 'bus', 'truck', ]
+vehicle_ids = [detector.CLASSES.index(label) for label in vehicle_labels]
 
-  result = [np.empty((0, 5)) for i in range(len(out))]
-  for id in vehicle_ids:
-      result[id] = out[id]
+result = [np.empty((0, 5)) for i in range(len(out))]
+for id in vehicle_ids:
+    result[id] = out[id]
 
-  img = detector.show_result(img_file, result)
-  cv2.imwrite(/path/to/output_image, img)
+img = detector.show_result(img_file, result)
+cv2.imwrite(/path/to/output_image, img)
 ```

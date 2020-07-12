@@ -58,6 +58,7 @@ Vehicle detection is completed within general object detection pretrained with M
 Refer to mmdetection [docs](https://github.com/Jokoe66/mmdetection-1/blob/master/docs/getting_started.md).
 ```python
 import cv2
+import numpy as np
 
 from mmdet.apis import inference
 

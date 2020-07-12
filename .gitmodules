@@ -1,3 +1,6 @@
 [submodule "lib/lanedet"]
 	path = lib/lanedet
 	url = https://github.com/Jokoe66/Ultra-Fast-Lane-Detection.git
+[submodule "lib/mmdetection"]
+	path = lib/mmdetection
+	url = https://github.com/Jokoe66/mmdetection-1.git

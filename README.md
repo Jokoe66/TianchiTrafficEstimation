@@ -57,25 +57,25 @@ Vehicle detection is completed within general object detection pretrained with M
 #### mmdetection usage
 Refer to mmdetection [docs](https://github.com/Jokoe66/mmdetection-1/blob/master/docs/getting_started.md).
 ```python
-import cv2
-import numpy as np
+  import cv2
+  import numpy as np
 
-from mmdet.apis import inference
+  from mmdet.apis import inference
 
-config = /path/to/config # e.g. mmdetection/configs/cascade_rcnn/cascade_rcnn_r50_fpn_1x_coco.py
-checkpoint = /path/to/model/weight # Download from mmdetection model_zoo
+  config = /path/to/config # e.g. mmdetection/configs/cascade_rcnn/cascade_rcnn_r50_fpn_1x_coco.py
+  checkpoint = /path/to/model/weight # Download from mmdetection model_zoo
 
-detector = inference.init_detector(config, checkpoint=checkpoint, device='cuda:0')
-img_file = /path/to/image
-out = inference.inference_detector(detector, img_file)
+  detector = inference.init_detector(config, checkpoint=checkpoint, device='cuda:0')
+  img_file = /path/to/image
+  out = inference.inference_detector(detector, img_file)
 
-vehicle_labels = ['car', 'motorcycle', 'bus', 'truck', ]
-vehicle_ids = [detector.CLASSES.index(label) for label in vehicle_labels]
+  vehicle_labels = ['car', 'motorcycle', 'bus', 'truck', ]
+  vehicle_ids = [detector.CLASSES.index(label) for label in vehicle_labels]
 
-result = [np.empty((0, 5)) for i in range(len(out))]
-for id in vehicle_ids:
-    result[id] = out[id]
+  result = [np.empty((0, 5)) for i in range(len(out))]
+  for id in vehicle_ids:
+      result[id] = out[id]
 
-img = detector.show_result(img_file, result)
-cv2.imwrite(/path/to/output_image, img)
+  img = detector.show_result(img_file, result)
+  cv2.imwrite(/path/to/output_image, img)
 ```

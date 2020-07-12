@@ -34,8 +34,8 @@ Refer to [awesome-lane-detection](https://github.com/amusi/awesome-lane-detectio
 #### lanedet usage
 lanedet is modified for easier usage from [Ultra-Fast-Lane-Detection](https://github.com/cfzd/Ultra-Fast-Lane-Detection)。
 * The demo code is refactored.
-  * Build 3 APIs in [inference.py](lib/lanedet/inference.py) (```init_model```, ```inference_model``` and ```show_result```)
-  * Support single image test by running inference.py（See [run.sh](lib/lanedet/run.sh)).
+  * Build 3 APIs in [inference.py](https://github.com/Jokoe66/Ultra-Fast-Lane-Detection/blob/63cafe63b871243818521d7d0ed3e7d044496f53/inference.py) (```init_model```, ```inference_model``` and ```show_result```)
+  * Support single image test by running inference.py（See [run.sh](https://github.com/Jokoe66/Ultra-Fast-Lane-Detection/blob/63cafe63b871243818521d7d0ed3e7d044496f53/run.sh)).
 * The project is refactored to be a package for external calls.
   ```python
     from lanedet.utils.config import Config

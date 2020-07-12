@@ -48,7 +48,7 @@ lanedet is modified for easier usage from [Ultra-Fast-Lane-Detection](https://gi
   model = init_model(config, 'cuda:0')
   img_file = /path/to/image
   result = inference_model(model, img_file)
-  img = show_result(result, img_file)
+  img = show_result(img_file, result)
   img.save(/path/to/output_image)
   ```
 ### Task4: Vehicle detection

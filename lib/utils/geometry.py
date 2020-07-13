@@ -85,7 +85,7 @@ def split_rectangle(lines, shape):
     y_min = 0
     lrs = [linregress(line) for line in lines]
     if len(lrs) == 1:
-        y_min = lines[:, :, 1].min()
+        y_min = lines[0][:, 1].min()
     else:
         for lr1, lr2 in zip(lrs[:-1], lrs[1:]):
             x3 = (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope)
@@ -125,16 +125,22 @@ def split_rectangle(lines, shape):
 
     return lanes
 
+
 if __name__ == '__main__':
-    ls = [ (-2, 9), (10, -35), (1, -4)]
     w = h = 10.
+    ls = [(-2, 9), (10, -35), (1, -4)] # List[(slope, intercept)]
     lines = []
     xs = [np.linspace(0, 2, 18), np.linspace(4, 4.5, 18), np.linspace(8, 10, 18)]
+    # test cases
+    # ls = []; xs = []
+    # ls = ls[:2]; xs = xs[:2]
+    # ls = ls[:1]; xs = xs[:1]
+    # ls = ls[1:2]; xs = xs[1:2]
+    # ls = ls[2:3]; xs = xs[2:3]
     for i, l in enumerate(ls):
         y = xs[i] * l[0] + l[1]
         lines.append(np.stack([xs[i], y], -1))
 
-    lines = np.stack(lines, 0)
     for line in lines:
         plt.scatter(line[:, 0], -line[:, 1])
 
@@ -145,13 +151,14 @@ if __name__ == '__main__':
         lane = np.vstack([lane, lane[None, 0]])
         plt.plot(lane[:, 0], -lane[:, 1])
     plt.arrow(w / 2, -h, dx=0., dy=1, width=0.2, ec='blue')
-    plt.text(lanes[main_idx].mean(0)[0], -lanes[main_idx].mean(0)[1], s='Main')
+    plt.text(lanes[main_lane].mean(0)[0], -lanes[main_lane].mean(0)[1], s='Main')
     
     # point-in-lane test
-    for p in np.random.uniform(0, 10, (250, 2)):
-        inside = point_in_polygon(p, lanes[main_idx])
+    for p in np.random.uniform(0, w, (250, 2)):
+        inside = point_in_polygon(p, lanes[main_lane])
         color = 'blue' if inside else 'black'
-        plt.scatter(p[0], -p[1], marker='+', color=color)
+        marker = '+' if inside else 'x'
+        plt.scatter(p[0], -p[1], marker=marker, color=color)
 
     plt.xlim(- 0.1, w + 0.1)
     plt.ylim(- h - 0.1,  0.1)

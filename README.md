@@ -80,7 +80,7 @@ img = detector.show_result(img_file, result)
 cv2.imwrite(/path/to/output_image, img)
 ```
 
-## [Traffic Status Estimation ![](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Jokoe66/TianchiTrafficEstimation/blob/master/demo.ipynb)
+## [![Traffic Status Estimation](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Jokoe66/TianchiTrafficEstimation/blob/master/demo.ipynb)
 ### Method
 Combining vehicle detection and lane detection, we can make a first simple traffic status hypothesis. The hypothesis
 follows the 4-step pipeline: generate lane areas (polygons), determine the main lane, filter main-lane vehicles, and predict the

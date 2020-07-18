@@ -40,6 +40,7 @@ lanedet is modified for easier usage from [Ultra-Fast-Lane-Detection](https://gi
   ```python
   from lanedet.utils.config import Config
   from lanedet.inference import init_model, inference_model, show_result
+  from utils.geometry import split_rectangle, point_in_polygon
 
   config_file = /path/to/config
   config = Config.fromfile(config_file)
@@ -50,6 +51,12 @@ lanedet is modified for easier usage from [Ultra-Fast-Lane-Detection](https://gi
   result = inference_model(model, img_file)
   img = show_result(img_file, result)
   img.save(/path/to/output_image)
+  
+  # The lane detections are used to determine which is the main lane.
+  lines = [_[_[:, 0] > 0] for _ in result if len(_[_[:, 0] > 0]) > 2] # filter high quality lane detections
+  lanes = split_rectangle(lines, img.size)
+  w, h = img.size
+  main_lane = [point_in_polygon([w/2, h], lane) for lane in lanes].index(True)
   ```
 ### Task4: Vehicle detection
 Vehicle detection is completed within general object detection pretrained with MS COCO dataset, based on [mmdetection](https://github.com/Jokoe66/mmdetection-1).

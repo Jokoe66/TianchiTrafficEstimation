@@ -81,6 +81,7 @@ def split_rectangle(lines, shape):
     Returns:
         (List[ndarray]): splitted polygons represented by vertexes
     """
+    prec = 4
     w, h = shape
     y_min = 0
     lrs = [linregress(line) for line in lines]
@@ -89,8 +90,8 @@ def split_rectangle(lines, shape):
     else:
         for lr1, lr2 in zip(lrs[:-1], lrs[1:]):
             x3 = np.round(
-                (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope), 8)
-            y_min = max(y_min, np.round(x3 * lr1.slope + lr1.intercept, 8))
+                (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope), prec)
+            y_min = max(y_min, np.round(x3 * lr1.slope + lr1.intercept, prec))
             
     lrs.insert(0, LinregressResult(-0.001, y_min, 0, 0, 0))
     lrs.insert(len(lrs), LinregressResult(0.001, y_min, 0, 0, 0))
@@ -98,12 +99,12 @@ def split_rectangle(lines, shape):
     lanes = []
     for lr1, lr2 in zip(lrs[:-1], lrs[1:]):
         polygons = []
-        x1 = np.clip((h - lr1.intercept) / lr1.slope, 0, w).round(8)
-        y1 = np.round(x1 * lr1.slope + lr1.intercept, 8)
+        x1 = np.clip((h - lr1.intercept) / lr1.slope, 0, w)
+        y1 = x1 * lr1.slope + lr1.intercept
         polygons.append([x1, y1])
 
-        x2 = np.clip((h - lr2.intercept) / lr2.slope, 0, w).round(8)
-        y2 = np.round(x2 * lr2.slope + lr2.intercept, 8)
+        x2 = np.clip((h - lr2.intercept) / lr2.slope, 0, w)
+        y2 = x2 * lr2.slope + lr2.intercept
 
         if x1 == 0 and x2 > 0:
             polygons.append([0, h])
@@ -112,18 +113,15 @@ def split_rectangle(lines, shape):
 
         polygons.append([x2, y2])
 
-        x3 = np.round(
-            (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope), 8)
-        y3 = np.clip(x3 * lr1.slope + lr1.intercept, y_min, h).round(8)
-        if y3 == y_min and x3 != np.round((y_min - lr2.intercept ) / lr2.slope, 8):
-            polygons.append([np.round(
-                (y_min - lr2.intercept ) / lr2.slope, 8), y_min])
-            polygons.append([np.round(
-                (y_min - lr1.intercept ) / lr1.slope, 8), y_min])
+        x3 = (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope)
+        y3 = np.clip(x3 * lr1.slope + lr1.intercept, y_min, h)
+        if y3 == y_min and x3 != (y_min - lr2.intercept ) / lr2.slope:
+            polygons.append([(y_min - lr2.intercept ) / lr2.slope, y_min])
+            polygons.append([(y_min - lr1.intercept ) / lr1.slope, y_min])
         else:
             polygons.append([x3, y3])
 
-        lane = np.vstack(polygons)
+        lane = np.vstack(polygons).round(prec)
 
         lanes.append(lane)
 

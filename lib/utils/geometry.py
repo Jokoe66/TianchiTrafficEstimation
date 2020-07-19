@@ -71,6 +71,44 @@ def point_in_polygon(target, poly):
     return inside
 
 
+def filter_lines(lrs):
+    """Filter out low-quality and redundant lines
+    
+    Args:
+        lrs (List or ndarray): lines represented by points
+    
+    Returns:
+        (List[LinregressResult]): high-quality lines represented by slope and intercept
+    """
+    i = 0
+    while i < len(lrs) - 1:
+        lr1 = lrs[i]
+        lr2 = lrs[i + 1]
+        if lr1.slope < lr2.slope and (lr1.slope > 0 or lr2.slope < 0):
+            lrs.pop(i + 1)
+        elif (abs((lrs[0].slope - lrs[1].slope) / (1e-5 + lrs[1].slope)) < 0.1
+              or abs((lrs[0].intercept - lrs[1].intercept)
+                     / (1e-5 + lrs[1].intercept)) < 0.1):
+            lrs.pop(i + 1)
+        else:
+            i += 1
+    return lrs
+
+
+def inter_point(lr1, lr2):
+    """Calculate the intersection of two lines.
+    Args:
+        lr1 (LinregressResult): line1 represented by slope and intercept.
+        lr2 (LinregressResult): silimar to lr1.
+    
+    Returns:
+        tuple: point of intersection (x, y).
+    """
+    x = (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope)
+    y = x * lr1.slope + lr1.intercept
+    return (x, y)
+
+
 def split_rectangle(lines, shape):
     """Split with lines a rectangle locating at origin. 
     
@@ -85,14 +123,15 @@ def split_rectangle(lines, shape):
     w, h = shape
     y_min = 0
     lrs = [linregress(line) for line in lines]
+    lrs = filter_lines(lrs) # filter abnormal lines
+    
     if len(lrs) == 1:
         y_min = lines[0][:, 1].min()
-    else:
-        for lr1, lr2 in zip(lrs[:-1], lrs[1:]):
-            x3 = np.round(
-                (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope), prec)
-            y_min = max(y_min, np.round(x3 * lr1.slope + lr1.intercept, prec))
-            
+    elif len(lrs) > 1:
+        inter_points = list(map(inter_point, lrs[:-1], lrs[1:]))
+        y_min = max(_[1] for _ in inter_points)
+        assert y_min < h
+
     lrs.insert(0, LinregressResult(-0.001, y_min, 0, 0, 0))
     lrs.insert(len(lrs), LinregressResult(0.001, y_min, 0, 0, 0))
     

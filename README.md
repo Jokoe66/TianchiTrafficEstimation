@@ -89,22 +89,32 @@ cv2.imwrite(/path/to/output_image, img)
 
 ## Traffic Status Estimation [![Open in colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Jokoe66/TianchiTrafficEstimation/blob/master/demo.ipynb)
 ### Method
-Combining vehicle detection and lane detection, we can make a first simple traffic status hypothesis. The hypothesis
+- **Overview**
+
+  Combining vehicle detection and lane detection, we can make a first simple traffic status hypothesis. The hypothesis
 follows the 4-step pipeline: generate lane areas (polygons), determine the main lane, filter main-lane vehicles, and predict the
 traffic status as a function of the distance of the closest main-lane vehicle.
 
-We first generate lane areas with the detected lane markers. We regress the lane lines, then split the image with lane lines, resulting
+- **Generate lane areas** 
+
+  We first generate lane areas with the detected lane markers. We regress the lane lines, then split the image with lane lines, resulting
 in several lane areas represented by polygon vertexes.
 
-The lane areas are used to judge the main lane where the car is driving on, and to filter out vehicles that 
+- **Determine the main lane** 
+
+  The lane areas are used to judge the main lane where the car is driving on, and to filter out vehicles that 
 we care. The main lane is determined by checking which lane area the bottom-center viewpoint **(w/2, h)**
 locates in.
 
-The vehicle detection results contain vehicle bounding-boxes (and sementic segmentation maps). The vehicles 
+- **Filter main-lane vehicles**
+
+  The vehicle detection results contain vehicle bounding-boxes (and sementic segmentation maps). The vehicles 
 we care are those that locate on the main lane. The filtering is done by judging if the bottom-center points of the
 vehicle bounding-boxes locate in the main lane area.
 
-Based on the key vehicles that locate on the main lane, we predict the traffic status as a heuristic function of the distance
+- **Predict traffic status**
+
+  Based on the key vehicles that locate on the main lane, we predict the traffic status as a heuristic function of the distance
 of the closest key vehicle from the camera. The distance is measured as the y-axis L1 distance in the image plane between
 the bottom-center point of the bounding-box and the bottom-center viewpoint **(w/2, h)**. The function is fomulated 
 based on two parameterized thresholds **thr1** and **thr2**. If the distance is below **thr1**, then the traffic status is hypothesized

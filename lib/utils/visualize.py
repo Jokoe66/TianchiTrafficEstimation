@@ -17,7 +17,8 @@ def show_lanes(img, lanes, main_lane=None):
     elif isinstance(img, np.ndarray):
         img = Image.fromarray(img)
     w, h = img.size
-    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
+    colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
+              (0, 255, 255), (255, 0, 255)]
     draw = ImageDraw.Draw(img)
 
     for i, lane in enumerate(lanes):

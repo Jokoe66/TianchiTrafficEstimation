@@ -2,6 +2,7 @@ import json
 import os
 
 from PIL import Image
+import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
@@ -15,6 +16,8 @@ class ImageSequenceDataset(Dataset):
         self.img_root = self.img_root % split
         self.ann_file = self.ann_file % split
         self._load_anns()
+        self.img_norm = dict(mean=[123.675, 116.28, 103.53],
+                             std=[58.395, 57.12, 57.375])
         if transform:
             self.transform = transform
         else:
@@ -22,8 +25,7 @@ class ImageSequenceDataset(Dataset):
             self.transform = Compose([
                 Resize(size=input_size),
                 ToTensor(),
-                Normalize(mean=[123.675, 116.28, 103.53],
-                          std=[58.395, 57.12, 57.375]),
+                Normalize(**self.img_norm)
             ])
         self.seq_max_len = kwargs.get('seq_max_len', 5)
         self.key_frame_only = kwargs.get('key_frame_only', False)
@@ -37,11 +39,15 @@ class ImageSequenceDataset(Dataset):
         if self.key_frame_only:
             img = Image.open(os.path.join(self.img_root,
                     ann['id'], ann['key_frame']))
+            img = np.array(img)
             if self.transform:
                 img = self.transform(img)
+            else:
+                img = torch.tensor(img)
             return dict(imgs=img,
                         key=0,
                         len_seq=1,
+                        seq_len=1,
                         label=ann['status'])
 
         ann['imgs'] = []
@@ -52,16 +58,22 @@ class ImageSequenceDataset(Dataset):
                     ann['key'] = i
                 img = Image.open(os.path.join(self.img_root, 
                     ann['id'], frame['frame_name']))
-                if self.transform:
-                    img = self.transform(img)
+                img = np.array(img)
             else:
-                img = torch.zeros(ann['imgs'][0].shape)
+                img = np.zeros_like(np.array(ann['imgs'][0]))
+                img = img + self.img_norm['mean']
+                img = img.astype('uint8')
+            if self.transform:
+                img = self.transform(img)
+            else:
+                img = torch.tensor(img)
             ann['imgs'].append(img)
         ann['imgs'] = torch.stack(ann['imgs'], -1)
 
         return dict(imgs=ann['imgs'],
                     key=ann['key'],
                     len_seq=len(ann['frames']),
+                    seq_len=len(ann['frames']),
                     label=ann['status'])
 
     def __len__(self):

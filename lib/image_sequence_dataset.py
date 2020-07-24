@@ -4,6 +4,7 @@ import os
 from PIL import Image
 import numpy as np
 import torch
+import mmcv
 from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
 
@@ -21,9 +22,9 @@ class ImageSequenceDataset(Dataset):
         if transform:
             self.transform = transform
         else:
-            input_size = kwargs.get('input_size', (360, 640))
+            input_size = kwargs.get('input_size', (1280, 720))
             self.transform = Compose([
-                Resize(size=input_size),
+                lambda x: mmcv.imresize(x, input_size),
                 ToTensor(),
                 Normalize(**self.img_norm)
             ])
@@ -50,7 +51,7 @@ class ImageSequenceDataset(Dataset):
                         seq_len=1,
                         label=ann['status'])
 
-        ann['imgs'] = []
+        imgs = []
         for i in range(self.seq_max_len):
             if i < len(ann['frames']):
                 frame = ann['frames'][i]
@@ -60,17 +61,17 @@ class ImageSequenceDataset(Dataset):
                     ann['id'], frame['frame_name']))
                 img = np.array(img)
             else:
-                img = np.zeros_like(np.array(ann['imgs'][0]))
+                img = np.zeros_like(np.array(imgs[0]))
                 img = img + self.img_norm['mean']
                 img = img.astype('uint8')
             if self.transform:
                 img = self.transform(img)
             else:
                 img = torch.tensor(img)
-            ann['imgs'].append(img)
-        ann['imgs'] = torch.stack(ann['imgs'], -1)
+            imgs.append(img)
+        imgs = torch.stack(imgs, -1)
 
-        return dict(imgs=ann['imgs'],
+        return dict(imgs=imgs,
                     key=ann['key'],
                     len_seq=len(ann['frames']),
                     seq_len=len(ann['frames']),

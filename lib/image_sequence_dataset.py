@@ -10,7 +10,7 @@ from torchvision.transforms import Compose, Normalize, Resize, ToTensor
 
 class ImageSequenceDataset(Dataset):
 
-    img_root = 'data/amap_traffic_%s/'
+    img_root = 'data/amap_traffic_%s_0712/'
     ann_file = 'data/amap_traffic_annotations_%s.json'
 
     def __init__(self, split='train', transform=None, **kwargs):

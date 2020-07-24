@@ -17,9 +17,18 @@ from lib.lanedet.inference import init_model, inference_model, show_result
 from lib.utils.visualize import show_lanes
 from lib.utils.geometry import split_rectangle, point_in_polygon
 
-debug = 0
+parser = argparse.ArgumentParser()
+parser.add_argument('--split', type=str, default='train', help='train or test')
+parser.add_argument('--device', type=str, default='cuda:0', help='device')
+parser.add_argument('--debug', action="store_true", default=False,
+                    help='whether save visualized images')
+parser.add_argument('--debug_dir', type=str, default='outputs',
+                    help='directory to save visualized images')
+args = parser.parse_args()
+
+debug = args.debug
+debug_dir = args.debug_dir
 if debug:
-    debug_dir = 'outputs'
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
 ##车辆检测初始化
@@ -31,20 +40,20 @@ checkpoint = ('https://open-mmlab.s3.ap-northeast-2.amazonaws.com/mmdetection'
               '0.365_20200504_174711-4af8e66e.pth')
 
 detector = inference.init_detector(config,
-                                   checkpoint=checkpoint, device='cuda:0')
+                                   checkpoint=checkpoint, device=args.device)
 # 道路检测初始化
 config_file = 'lib/lanedet/configs/culane.py'  # /path/to/config
 config = Config.fromfile(config_file)
 config.test_model = 'lib/lanedet/checkpoints/culane_18.pth'  # /path/to/model_weight
-model = init_model(config, 'cuda:0')
+model = init_model(config, args.device)
 # 训练集初始化
 training_set = ImageSequenceDataset(
-    'train',
+    args.split,
     transform=transforms.Compose([
         lambda x:mmcv.imresize(x, (1280, 720)),
         lambda x:torch.tensor(x)]),
     key_frame_only=False)
-enriched_training_set = [] #输出数据集
+enriched_annotations = [] #输出数据集
 
 for idx in tqdm.tqdm(range(len(training_set))):
     data = training_set[idx]
@@ -114,9 +123,10 @@ for idx in tqdm.tqdm(range(len(training_set))):
 
         ann['feats']['closest_vehicle_distance'].append(
             (h - closest_main_lane_bottom_centers[0, 1]) / (h - pseudo_bc[1]))
-    enriched_training_set.append(ann)
+    enriched_annotations.append(ann)
 
     if idx % 100 == 0 or idx == len(training_set) - 1:
-        with open('enriched_training_set.json', 'w') as f:
-            json.dump(enriched_training_set, f)
+        save_path = os.path.join('data', f'enriched_annotations_{args.split}.json')
+        with open(save_path, 'w') as f:
+            json.dump(enriched_annotations, f)
 

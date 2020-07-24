@@ -1,9 +1,9 @@
 from datetime import datetime
+import json
+
 import pandas as pd
 import numpy as np
-from sklearn.metrics import f1_score
 import lightgbm
-import matplotlib.image as mpimg
 from sklearn.metrics import f1_score, log_loss
 from sklearn.model_selection import StratifiedKFold, KFold
 
@@ -17,12 +17,9 @@ def get_data(df, img_path):
     gap_time_2=[]
     im_diff_mean=[]
     im_diff_std=[]
-    closest_vehicle_distances_1 = []
-    main_lane_vehicles_1 = []
-    total_vehicles_1 = []
-    closest_vehicle_distances_2 = []
-    main_lane_vehicles_2 = []
-    total_vehicles_2 = []
+    closest_vehicle_distances = dict(mean=[], std=[], key=[])
+    main_lane_vehicles = dict(mean=[], std=[], key=[])
+    total_vehicles = dict(mean=[], std=[], key=[])
     
     for idx in range(len(df)):
         s = df.iloc[idx]
@@ -31,25 +28,22 @@ def get_data(df, img_path):
         frames=s["frames"]
         status=s["status"]
         closest_vehicle_distance = s['feats']['closest_vehicle_distance']
-        main_lane_vehicle = s['feats']['closest_vehicle_distance']
+        main_lane_vehicle = s['feats']['main_lane_vehicles']
         total_vehicle = s['feats']['total_vehicles']
         key = [frame['frame_name'] for frame in frames].index(map_key)
+        closest_vehicle_distances['key'].append(closest_vehicle_distance[key])
+        main_lane_vehicles['key'].append(main_lane_vehicle[key])
+        total_vehicles['key'].append(total_vehicle[key])
+        closest_vehicle_distances['mean'].append(np.mean(closest_vehicle_distance))
+        closest_vehicle_distances['std'].append(np.std(closest_vehicle_distance))
+        main_lane_vehicles['mean'].append(np.mean(main_lane_vehicle))
+        main_lane_vehicles['std'].append(np.std(main_lane_vehicle))
+        total_vehicles['mean'].append(np.mean(total_vehicle))
+        total_vehicles['std'].append(np.std(total_vehicle))
         
         for i in range(0,len(frames)-1):
             f=frames[i]
             f_next=frames[i+1]
-            """
-            im=mpimg.imread(path+img_path+"/"+map_id+"/"+f["frame_name"])
-            im_next=mpimg.imread(path+img_path+"/"+map_id+"/"+f_next["frame_name"])
-            
-            if im.shape==im_next.shape:
-                im_diff=im-im_next
-            else:
-                im_diff=im
-            
-            im_diff_mean.append(np.mean(im_diff))
-            im_diff_std.append(np.std(im_diff))
-            """
 
             map_id_list.append(map_id)
             key_frame_list.append(map_key)
@@ -58,12 +52,6 @@ def get_data(df, img_path):
             gap_time_1.append(f["gps_time"])
             gap_time_2.append(f_next["gps_time"])
             label.append(status)
-            closest_vehicle_distances_1.append(closest_vehicle_distance[i])
-            closest_vehicle_distances_2.append(closest_vehicle_distance[i + 1])
-            main_lane_vehicles_1.append(main_lane_vehicle[i])
-            main_lane_vehicles_2.append(main_lane_vehicle[i + 1])
-            total_vehicles_1.append(total_vehicle[i])
-            total_vehicles_2.append(total_vehicle[i + 1])
     train_df= pd.DataFrame({
         "map_id":map_id_list,
         "label":label,
@@ -72,14 +60,6 @@ def get_data(df, img_path):
         "jpg_name_2":jpg_name_2,
         "gap_time_1":gap_time_1,
         "gap_time_2":gap_time_2,
-        "closest_vehicle_distances_1": closest_vehicle_distances_1,
-        "closest_vehicle_distances_2": closest_vehicle_distances_2,
-        "main_lane_vehicles_1": main_lane_vehicles_1,
-        "main_lane_vehicles_2": main_lane_vehicles_2,
-        "total_vehicles_1": total_vehicles_1,
-        "total_vehicles_2": total_vehicles_2,
-        #"im_diff_mean":im_diff_mean,
-        #"im_diff_std":im_diff_std,
     })
 
     train_df["gap"]=train_df["gap_time_2"]-train_df["gap_time_1"]
@@ -87,32 +67,39 @@ def get_data(df, img_path):
     train_df["hour"]=train_df["gap_time_1"].apply(lambda x:datetime.fromtimestamp(x).hour)
     train_df["minute"]=train_df["gap_time_1"].apply(lambda x:datetime.fromtimestamp(x).minute)
     train_df["day"]=train_df["gap_time_1"].apply(lambda x:datetime.fromtimestamp(x).day)
-    train_df["dayofweek"]=train_df["gap_time_1"].apply(lambda x:datetime.fromtimestamp(x).weekday())
+    train_df["dayofweek"]=train_df["gap_time_1"].apply(
+        lambda x:datetime.fromtimestamp(x).weekday())
     
     train_df["key_frame"]=train_df["key_frame"].apply(lambda x:int(x.split(".")[0]))
-    train_df["closest_vehicle_distances"] = train_df["closest_vehicle_distances_1"]
-    train_df["main_lane_vehicles"] = train_df["main_lane_vehicles_1"]
-    train_df["total_vehicles"] = train_df["total_vehicles_1"]
     
     train_df=train_df.groupby("map_id").agg({"gap":["mean","std"],
                                              "hour":["mean"],
                                              "minute":["mean"],
                                              "dayofweek":["mean"],
                                              "gap_time_today":["mean","std"],
-                                             #"im_diff_mean":["mean","std"],
-                                             #"im_diff_std":["mean","std"],
-                                             "closest_vehicle_distances": ["mean","std"],
-                                             "main_lane_vehicles": ["mean","std"],
-                                             "total_vehicles": ["mean","std"],
                                              "label": ["mean"],
                                             }).reset_index()
+    train_df = pd.concat([
+        train_df,
+        pd.Series(closest_vehicle_distances['mean'], name='closest_vehicle_distances_mean'),
+        pd.Series(closest_vehicle_distances['std'], name='closest_vehicle_distances_std'),
+        pd.Series(main_lane_vehicles['mean'], name='main_lane_vehicles_mean'),
+        pd.Series(main_lane_vehicles['std'], name='main_lane_vehicles_std'),
+        pd.Series(total_vehicles['mean'], name='total_vehicles_mean'),
+        pd.Series(total_vehicles['std'], name='total_vehicles_std'),
+        pd.Series(closest_vehicle_distances['key'], name='key_closest_vehicle_distance'),
+        pd.Series(main_lane_vehicles['key'], name='key_main_lane_vehicle'),
+        pd.Series(total_vehicles['key'], name='key_total_vehicle'),
+    ], axis=1)
     train_df.columns=["map_id","gap_mean","gap_std",
-                      "hour_mean","minute_mean","dayofweek_mean","gap_time_today_mean","gap_time_today_std",
+                      "hour_mean","minute_mean","dayofweek_mean",
+                      "gap_time_today_mean","gap_time_today_std",
+                      "label",
                       "closest_vehicle_distances_mean", "closest_vehicle_distances_std",
                       "main_lane_vehicles_mean", "main_lane_vehicles_std",
                       "total_vehicles_mean", "total_vehicles_std",
-                      #"im_diff_mean_mean","im_diff_mean_std","im_diff_std_mean","im_diff_std_std",
-                      "label"]
+                      "key_closest_vehicle_distance", "key_main_lane_vehicle",
+                      "key_total_vehicle"]
     train_df["label"]=train_df["label"].apply(int)
     
     return train_df
@@ -213,10 +200,12 @@ if __name__ == '__main__':
 
     select_features=["gap_mean","gap_std",
                      "hour_mean","minute_mean","dayofweek_mean", "gap_time_today_mean","gap_time_today_std",
-                     "closest_vehicle_distances_mean", "closest_vehicle_distances_std",
-                     #"main_lane_vehicles_mean", "main_lane_vehicles_std",
-                     "total_vehicles_mean", "total_vehicles_std"
-                     #"im_diff_mean_mean","im_diff_mean_std","im_diff_std_mean","im_diff_std_std",
+                      "closest_vehicle_distances_mean", "closest_vehicle_distances_std",
+                      "main_lane_vehicles_mean", "main_lane_vehicles_std",
+                      "total_vehicles_mean", "total_vehicles_std",
+                      "key_closest_vehicle_distance",
+                      #"key_main_lane_vehicle",
+                      "key_total_vehicle",
                     ]
 
     train_x=train_df[select_features].copy()

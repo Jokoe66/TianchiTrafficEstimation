@@ -80,6 +80,8 @@ def filter_lines(lrs):
     Returns:
         (List[LinregressResult]): high-quality lines represented by slope and intercept
     """
+    # first filter out high stderror regression results
+    lrs = [lr for lr in lrs if lr.stderr < 0.15]
     i = 0
     while i < len(lrs) - 1:
         lr1 = lrs[i]
@@ -121,13 +123,11 @@ def split_rectangle(lines, shape):
     """
     prec = 4
     w, h = shape
-    y_min = 0
+    y_min = h / 4
     lrs = [linregress(line) for line in lines]
     lrs = filter_lines(lrs) # filter abnormal lines
     
-    if len(lrs) == 1:
-        y_min = lines[0][:, 1].min()
-    elif len(lrs) > 1:
+    if len(lrs) > 1:
         inter_points = list(map(inter_point, lrs[:-1], lrs[1:]))
         y_min = max(_[1] for _ in inter_points)
         assert y_min < h

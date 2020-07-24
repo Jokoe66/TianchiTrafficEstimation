@@ -1,12 +1,17 @@
 # [天池交通状况预测比赛](https://tianchi.aliyun.com/competition/entrance/531809/information)
 
+### Result
+|       Method        | F1_0 | F1_1 | F1_2 | score |
+|       :---:         | :---:| :---:| :---:| :---: |
+|time based baseline  | 0.905|0.034 | 0.713| 0.616 |
+|baseline+vehicle+lane| 0.914|0.017 | 0.740|**0.630**|
+
 ### Taks1: Scene Recognition
 Directly classfy scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.
 
 |       Method        | F1_0 | F1_1 | F1_2 | score |
 |       :---:         | :---:| :---:| :---:| :---: |
 |multi-classification | 0.84 | 0    |  0   | 0.17  |
-|ordinal regression   |      |      |      |       |
 
 
 ### Task2: Visual Odometry

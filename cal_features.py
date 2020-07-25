@@ -91,7 +91,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
         assert len(lanes) > 0
         main_lane = [point_in_polygon([w / 2, h], _) for _ in lanes].index(True)
         if debug:
-            img_to_show = img.copy()
+            img_to_show = img.copy()[..., ::-1]
             img_to_show = detector.show_result(img_to_show,
                 (box_result, seg_result), score_thr=0.5)[..., ::-1]
             img_to_show = show_result(img_to_show, result)

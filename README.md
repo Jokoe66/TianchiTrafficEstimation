@@ -4,7 +4,7 @@
 |       Method        | F1_0 | F1_1 | F1_2 | score |
 |       :---:         | :---:| :---:| :---:| :---: |
 |time based baseline  | 0.905|0.034 | 0.713| 0.616 |
-|baseline+vehicle+lane| 0.921|0.064 | 0.756|**0.650**|
+|baseline+vehicle+lane| 0.924|0.078 | 0.777|**0.666**|
 
 ### Taks1: Scene Recognition
 Directly classfy scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.

@@ -63,6 +63,8 @@ for idx in tqdm.tqdm(range(len(training_set))):
     ann['feats'] = dict(closest_vehicle_distance=[],
                         main_lane_vehicles=[],
                         total_vehicles=[],
+                        vehicle_distances_mean=[],
+                        vehicle_distances_std=[],
                         lanes=[],
                         lane_length=[],
                         )
@@ -112,6 +114,10 @@ for idx in tqdm.tqdm(range(len(training_set))):
             lanes[main_lane][:, 1] == lanes[main_lane][:, 1].min())
         pseudo_bc = lanes[main_lane][farthest_main_lane_points].mean(0)
         bottom_centers = np.vstack([bottom_centers, pseudo_bc])
+        vehicle_distances = np.sqrt(
+            (bottom_centers - np.array([w / 2, h])) ** 2).sum(1)
+        ann['feats']['vehicle_distances_mean'].append(vehicle_distances.mean())
+        ann['feats']['vehicle_distances_std'].append(vehicle_distances.std())
         
         inside_main_lane = np.array(
             [point_in_polygon(bc, lanes[main_lane]) for bc in bottom_centers])

@@ -33,6 +33,7 @@ def get_data(df, img_path):
             feats[name]['mean'].append(np.mean(feat))
             feats[name]['std'].append(np.std(feat))
             feats[name]['key'].append(feat[key])
+            feats[name]['gap'].append(np.max(feat) - np.min(feat))
         
         for i in range(0,len(frames)-1):
             f=frames[i]
@@ -90,7 +91,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     train_x = train_x.values
     test_x = test_x.values
     folds = 5
-    seed = 2019
+    seed = 2029
     kf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
 
     train = np.zeros((train_x.shape[0], class_num))
@@ -123,7 +124,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
                 'bagging_fraction': 0.8,
                 'bagging_freq': 4,
                 'learning_rate': 0.05,
-                'seed': 2019,
+                'seed': seed,
                 'nthread': 28,
                 'num_class': class_num,
                 'silent': True,
@@ -179,17 +180,33 @@ if __name__ == '__main__':
     test_df=get_data(test_json[:], "data/amap_traffic_test_0712")
 
     select_features=["gap_mean","gap_std",
-                     "hour_mean","minute_mean","dayofweek_mean",
+#                      "hour_mean", "minute_mean","dayofweek_mean",
                      "gap_time_today_mean","gap_time_today_std",
                      "closest_vehicle_distance_mean",
                      "closest_vehicle_distance_std",
                      "closest_vehicle_distance_key",
+#                      "closest_vehicle_distance_gap",
                      "main_lane_vehicles_mean",
-                     "main_lane_vehicles_std",
+#                      "main_lane_vehicles_std",
 #                      "main_lane_vehicles_key",
+#                      "main_lane_vehicles_gap",
                      "total_vehicles_mean",
                      "total_vehicles_std",
                      "total_vehicles_key",
+#                      "total_vehicles_gap",
+#                      "lanes_mean",
+#                      "lanes_std",
+#                      "lanes_key",
+                     "lane_length_mean",
+                     "lane_length_std",
+                     "lane_length_key",
+                     "lane_length_gap",
+#                      "vehicle_distances_mean_mean",
+#                      "vehicle_distances_mean_std",
+#                      "vehicle_distances_mean_key",
+                     "vehicle_distances_std_mean",
+#                      "vehicle_distances_std_std",
+#                      "vehicle_distances_std_key",
                     ]
 
     train_x=train_df[select_features].copy()

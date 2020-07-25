@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+from collections import defaultdict
 
 import pandas as pd
 import numpy as np
@@ -17,9 +18,9 @@ def get_data(df, img_path):
     gap_time_2=[]
     im_diff_mean=[]
     im_diff_std=[]
-    closest_vehicle_distances = dict(mean=[], std=[], key=[])
-    main_lane_vehicles = dict(mean=[], std=[], key=[])
-    total_vehicles = dict(mean=[], std=[], key=[])
+    feats = defaultdict(
+        lambda :defaultdict(
+            lambda : []))
     
     for idx in range(len(df)):
         s = df.iloc[idx]
@@ -27,19 +28,11 @@ def get_data(df, img_path):
         map_key=s["key_frame"]
         frames=s["frames"]
         status=s["status"]
-        closest_vehicle_distance = s['feats']['closest_vehicle_distance']
-        main_lane_vehicle = s['feats']['main_lane_vehicles']
-        total_vehicle = s['feats']['total_vehicles']
         key = [frame['frame_name'] for frame in frames].index(map_key)
-        closest_vehicle_distances['key'].append(closest_vehicle_distance[key])
-        main_lane_vehicles['key'].append(main_lane_vehicle[key])
-        total_vehicles['key'].append(total_vehicle[key])
-        closest_vehicle_distances['mean'].append(np.mean(closest_vehicle_distance))
-        closest_vehicle_distances['std'].append(np.std(closest_vehicle_distance))
-        main_lane_vehicles['mean'].append(np.mean(main_lane_vehicle))
-        main_lane_vehicles['std'].append(np.std(main_lane_vehicle))
-        total_vehicles['mean'].append(np.mean(total_vehicle))
-        total_vehicles['std'].append(np.std(total_vehicle))
+        for name, feat in s['feats'].items():
+            feats[name]['mean'].append(np.mean(feat))
+            feats[name]['std'].append(np.std(feat))
+            feats[name]['key'].append(feat[key])
         
         for i in range(0,len(frames)-1):
             f=frames[i]
@@ -79,28 +72,15 @@ def get_data(df, img_path):
                                              "gap_time_today":["mean","std"],
                                              "label": ["mean"],
                                             }).reset_index()
-    train_df = pd.concat([
-        train_df,
-        pd.Series(closest_vehicle_distances['mean'], name='closest_vehicle_distances_mean'),
-        pd.Series(closest_vehicle_distances['std'], name='closest_vehicle_distances_std'),
-        pd.Series(main_lane_vehicles['mean'], name='main_lane_vehicles_mean'),
-        pd.Series(main_lane_vehicles['std'], name='main_lane_vehicles_std'),
-        pd.Series(total_vehicles['mean'], name='total_vehicles_mean'),
-        pd.Series(total_vehicles['std'], name='total_vehicles_std'),
-        pd.Series(closest_vehicle_distances['key'], name='key_closest_vehicle_distance'),
-        pd.Series(main_lane_vehicles['key'], name='key_main_lane_vehicle'),
-        pd.Series(total_vehicles['key'], name='key_total_vehicle'),
-    ], axis=1)
     train_df.columns=["map_id","gap_mean","gap_std",
                       "hour_mean","minute_mean","dayofweek_mean",
                       "gap_time_today_mean","gap_time_today_std",
-                      "label",
-                      "closest_vehicle_distances_mean", "closest_vehicle_distances_std",
-                      "main_lane_vehicles_mean", "main_lane_vehicles_std",
-                      "total_vehicles_mean", "total_vehicles_std",
-                      "key_closest_vehicle_distance", "key_main_lane_vehicle",
-                      "key_total_vehicle"]
+                      "label"]
     train_df["label"]=train_df["label"].apply(int)
+    train_df = pd.concat([
+        train_df,
+        *[pd.Series(v, name=f'{name}_{k}') for name, feat in feats.items() for k, v in feat.items()],
+    ], axis=1)
     
     return train_df
 
@@ -137,7 +117,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
                 #'metric': 'None',
                 'metric': 'multi_logloss',
                 'min_child_weight': 1.5,
-                'num_leaves': 2 ** 3-1,
+                'num_leaves': 2 ** 3 - 1,
                 'lambda_l2': 10,
                 'feature_fraction': 0.8,
                 'bagging_fraction': 0.8,
@@ -181,7 +161,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     test[:] = test_pre.mean(axis=0)
     print("%s_score_list:" % clf_name, cv_scores)
     print("%s_score_mean:" % clf_name, np.mean(cv_scores), np.mean(f1_scores))
-    print("%s_score_mean:" % clf_name, np.std(cv_scores))
+    print("%s_score_std:" % clf_name, np.std(cv_scores))
     return train, test, test_pre_all, np.mean(f1_scores)
 
 
@@ -199,13 +179,17 @@ if __name__ == '__main__':
     test_df=get_data(test_json[:], "data/amap_traffic_test_0712")
 
     select_features=["gap_mean","gap_std",
-                     "hour_mean","minute_mean","dayofweek_mean", "gap_time_today_mean","gap_time_today_std",
-                      "closest_vehicle_distances_mean", "closest_vehicle_distances_std",
-                      "main_lane_vehicles_mean", "main_lane_vehicles_std",
-                      "total_vehicles_mean", "total_vehicles_std",
-                      "key_closest_vehicle_distance",
-                      #"key_main_lane_vehicle",
-                      "key_total_vehicle",
+                     "hour_mean","minute_mean","dayofweek_mean",
+                     "gap_time_today_mean","gap_time_today_std",
+                     "closest_vehicle_distance_mean",
+                     "closest_vehicle_distance_std",
+                     "closest_vehicle_distance_key",
+                     "main_lane_vehicles_mean",
+                     "main_lane_vehicles_std",
+#                      "main_lane_vehicles_key",
+                     "total_vehicles_mean",
+                     "total_vehicles_std",
+                     "total_vehicles_key",
                     ]
 
     train_x=train_df[select_features].copy()

@@ -24,6 +24,7 @@ parser.add_argument('--debug', action="store_true", default=False,
                     help='whether save visualized images')
 parser.add_argument('--debug_dir', type=str, default='outputs',
                     help='directory to save visualized images')
+parser.add_argument('--save_tag', type=str, default='')
 args = parser.parse_args()
 
 debug = args.debug
@@ -61,7 +62,10 @@ for idx in tqdm.tqdm(range(len(training_set))):
     img_seq = data['imgs'].numpy().transpose(3, 0, 1, 2)
     ann['feats'] = dict(closest_vehicle_distance=[],
                         main_lane_vehicles=[],
-                        total_vehicles=[])
+                        total_vehicles=[],
+                        lanes=[],
+                        lane_length=[],
+                        )
     for i in range(data['len_seq']):
         img = img_seq[i]
         ##车辆检测
@@ -123,10 +127,16 @@ for idx in tqdm.tqdm(range(len(training_set))):
 
         ann['feats']['closest_vehicle_distance'].append(
             (h - closest_main_lane_bottom_centers[0, 1]) / (h - pseudo_bc[1]))
+        ann['feats']['lane_length'].append((h - pseudo_bc[1]) / h)
+        ann['feats']['lanes'].append(len(lanes))
     enriched_annotations.append(ann)
 
     if idx % 100 == 0 or idx == len(training_set) - 1:
-        save_path = os.path.join('data', f'enriched_annotations_{args.split}.json')
+        save_file = f'enriched_annotations_{args.split}'
+        if args.save_tag:
+            save_file += f'_{args.save_tag}'
+        save_file += '.json'
+        save_path = os.path.join('data', save_file)
         with open(save_path, 'w') as f:
             json.dump(enriched_annotations, f)
 

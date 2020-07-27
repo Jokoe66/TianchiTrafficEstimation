@@ -74,22 +74,33 @@ for idx in tqdm.tqdm(range(len(training_set))):
         img = img_seq[i]
         h, w = img.shape[:2]
         ##车辆检测
-        box_out, seg_out = inference.inference_detector(detector,
-                                                        img[..., ::-1]) # RGB -> BGR
-        vehicle_labels = ['car', 'motorcycle', 'bus', 'truck', 'bicycle', ]
-        vehicle_ids = [detector.CLASSES.index(label) for label in vehicle_labels]
+        box_out, seg_out = inference.inference_detector(
+            detector, img[..., ::-1]) # RGB -> BGR
+        vehicle_labels = [
+            'person', 'car', 'motorcycle', 'bus', 'truck', 'bicycle', ]
+        vehicle_ids = [
+            detector.CLASSES.index(label) for label in vehicle_labels]
 
-        box_result = [np.empty((0, 5)) for i in range(len(box_out))]
-        seg_result = [[] for i in range(len(box_out))]
-        for id in vehicle_ids:
-            box_result[id] = box_out[id]
-            seg_result[id] = seg_out[id]
+        box_result = np.vstack([box_out[id] for id in vehicle_ids])
+        if len(box_result):
+            seg_result = np.stack([
+                seg for id in vehicle_ids for seg in seg_out[id]], axis=0)
+        else:
+            seg_result = np.zeros((0, h, w))
+        assert box_result.shape[1] == 5
+        assert seg_result.shape[1:] == (h, w)
+        assert len(box_result) == len(seg_result)
+        # preserve high confident ones
+        preserve = box_result[:, -1] >= 0.5
+        # preserve those above the bottom boundary (0.9 * h)
+        # this condition filters out the poetential detection of the car that
+        # the camera is mounted on.
+        preserve &= (box_result[:, 3] < 0.9 * h)
+        box_result = box_result[preserve]
+        seg_result = seg_result[preserve]
         
         # Calculate the union of vehicle areas
-        vehicle_mask = np.zeros((h, w), dtype=bool)
-        for segs in seg_result:
-            for seg in segs:
-                vehicle_mask |= seg
+        vehicle_mask = seg_result.any(axis=0)
         ann['feats']['vehicle_area'].append(vehicle_mask.mean())
 
         ##路线检测
@@ -98,25 +109,24 @@ for idx in tqdm.tqdm(range(len(training_set))):
         ##绘制
         lines = [line[line[:, 0] > 0]
             for line in result if len(line[line[:, 0] > 0]) > 2] # filter valid lines
-        lanes = split_rectangle(lines, (w, h))
+        lanes = split_rectangle(lines, (w, h), bounds=(0, 1, 0.25, 1.0))
         assert len(lanes) > 0
         main_lane = [point_in_polygon([w / 2, h], _) for _ in lanes].index(True)
         if debug:
             img_to_show = img.copy()[..., ::-1]
             img_to_show = detector.show_result(img_to_show,
-                (box_result, seg_result), score_thr=0.5)[..., ::-1]
+                (box_out, seg_out), score_thr=0.5)[..., ::-1]
             img_to_show = show_result(img_to_show, result)
             img_to_show = show_lanes(img_to_show, lanes, main_lane)
             img_to_show.save(os.path.join(debug_dir,
                 f"{ann['id']}-{i + 1}.jpg"))
         ##找最小线
-        vehicles = np.vstack(box_result)
-        # reserve high confident ones
-        vehicles = vehicles[vehicles[:, -1] >= 0.5]
-        ann['feats']['total_vehicles'].append(len(vehicles))
+        vehicles = box_result
 
         bottom_centers = vehicles[:, 2:4] # bottom-right points
         bottom_centers[:, 0] -= 0.5 * (vehicles[:, 2] - vehicles[:, 0])
+        bottom_centers
+        ann['feats']['total_vehicles'].append(len(vehicles))
         # append a pseudo bottom center (farthest end of the mainlane)
         # to avoid empty bottom_centers
         farthest_main_lane_points = (
@@ -124,7 +134,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
         pseudo_bc = lanes[main_lane][farthest_main_lane_points].mean(0)
         bottom_centers = np.vstack([bottom_centers, pseudo_bc])
         vehicle_distances = np.sqrt(
-            (bottom_centers - np.array([w / 2, h])) ** 2).sum(1)
+            (bottom_centers - np.array([w / 2, h])) ** 2).sum(1) / h
         ann['feats']['vehicle_distances_mean'].append(vehicle_distances.mean())
         ann['feats']['vehicle_distances_std'].append(vehicle_distances.std())
         

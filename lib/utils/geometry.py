@@ -120,26 +120,28 @@ def inter_point(lr1, lr2):
     return (x, y)
 
 
-def split_rectangle(lines, shape):
+def split_rectangle(lines, shape, bounds=(0, 1, 0.25, 1)):
     """Split with lines a rectangle locating at origin. 
     
     Args:
         lines (List or ndarray): lines represented by points
         shape (tuple or List): shape of rectangle to split
+        bounds (tuple or List): left, right, top, bottom boundaries. Default to 0, 1, 1/4, 1
     
     Returns:
         (List[ndarray]): splitted polygons represented by vertexes
     """
     prec = 4
     w, h = shape
-    y_min = h / 4
+    bounds = np.multiply(bounds, [w, w, h, h])
+    x_min, x_max, y_min, y_max = bounds
     lrs = [linregress(line) for line in lines]
     lrs = filter_lines(lrs) # filter abnormal lines
     
     if len(lrs) > 1:
         inter_points = list(map(inter_point, lrs[:-1], lrs[1:]))
         y_min = max(_[1] for _ in inter_points)
-        assert y_min < h
+        assert y_min < y_max
 
     lrs.insert(0, LinregressResult(-0.001, y_min, 0, 0, 0))
     lrs.insert(len(lrs), LinregressResult(0.001, y_min, 0, 0, 0))
@@ -147,22 +149,22 @@ def split_rectangle(lines, shape):
     lanes = []
     for lr1, lr2 in zip(lrs[:-1], lrs[1:]):
         polygons = []
-        x1 = np.clip((h - lr1.intercept) / lr1.slope, 0, w)
+        x1 = np.clip((y_max - lr1.intercept) / lr1.slope, 0, w)
         y1 = x1 * lr1.slope + lr1.intercept
         polygons.append([x1, y1])
 
-        x2 = np.clip((h - lr2.intercept) / lr2.slope, 0, w)
+        x2 = np.clip((y_max - lr2.intercept) / lr2.slope, 0, w)
         y2 = x2 * lr2.slope + lr2.intercept
 
         if x1 == 0 and x2 > 0:
-            polygons.append([0, h])
+            polygons.append([0, y_max])
         if x1 < w and x2 == w:
-            polygons.append([w, h])
+            polygons.append([w, y_max])
 
         polygons.append([x2, y2])
 
         x3 = (lr1.intercept - lr2.intercept) / (lr2.slope - lr1.slope)
-        y3 = np.clip(x3 * lr1.slope + lr1.intercept, y_min, h)
+        y3 = np.clip(x3 * lr1.slope + lr1.intercept, y_min, y_max)
         if y3 == y_min and x3 != (y_min - lr2.intercept ) / lr2.slope:
             polygons.append([(y_min - lr2.intercept ) / lr2.slope, y_min])
             polygons.append([(y_min - lr1.intercept ) / lr1.slope, y_min])
@@ -194,8 +196,9 @@ if __name__ == '__main__':
     for line in lines:
         plt.scatter(line[:, 0], -line[:, 1])
 
-    lanes = split_rectangle(lines, (w, h))
-    main_lane = [point_in_polygon([w / 2, h], _) for _ in lanes].index(True)
+    lanes = split_rectangle(lines, (w, h), bounds=(0, 1, 0.25, 0.9))
+    view_point = (w / 2, h * 9 / 10)
+    main_lane = [point_in_polygon(view_point, _) for _ in lanes].index(True)
 
     for i, lane in enumerate(lanes):
         lane = np.vstack([lane, lane[None, 0]])

@@ -100,6 +100,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     test_pre_all = np.zeros((folds, test_x.shape[0]))
     cv_scores = []
     f1_scores = []
+    f1s = []
     cv_rounds = []
 
     for i, (train_index, test_index) in enumerate(kf.split(train_x, train_y)):
@@ -118,7 +119,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
                 #'metric': 'None',
                 'is_unbalance': False,
                 'metric': 'multi_logloss',
-                'min_child_weight': 1.6,
+                'min_child_weight': 1.5,
                 'num_leaves': 2 ** 3 - 1,
                 'lambda_l2': 10,
                 'feature_fraction': 0.8,
@@ -152,7 +153,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
                 cv_scores.append(log_loss(te_y, pre))
                 
                 f1_list=f1_score(te_y,np.argmax(pre,axis=1),average=None)
-                print(f1_list)
+                f1s.append(f1_list)
                 f1=0.2*f1_list[0]+0.2*f1_list[1]+0.6*f1_list[2]
                 
                 f1_scores.append(f1)
@@ -166,6 +167,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     print("%s_score_list:" % clf_name, cv_scores)
     print("%s_score_mean:" % clf_name, np.mean(cv_scores), np.mean(f1_scores))
     print("%s_score_std:" % clf_name, np.std(cv_scores))
+    print(f"f1_scores_mean: {np.mean(f1s, axis=0)}")
     return train, test, test_pre_all, np.mean(f1_scores)
 
 
@@ -215,8 +217,8 @@ if __name__ == '__main__':
 #                      "vehicle_distances_std_std",
 #                      "vehicle_distances_std_key",
                      "vehicle_area_mean",
-#                      "vehicle_area_std",
-#                      "vehicle_area_key",
+                     "vehicle_area_std",
+                     "vehicle_area_key",
 #                      "vehicle_area_gap",
                     ]
 

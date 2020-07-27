@@ -90,7 +90,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     predictors = list(train_x.columns)
     train_x = train_x.values
     test_x = test_x.values
-    folds = 5
+    folds = 20
     seed = 2029
     kf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
 
@@ -116,13 +116,16 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
                 'boosting_type': 'gbdt',
                 'objective': 'multiclass',
                 #'metric': 'None',
+                'is_unbalance': False,
                 'metric': 'multi_logloss',
-                'min_child_weight': 1.5,
+                'min_child_weight': 1.6,
                 'num_leaves': 2 ** 3 - 1,
                 'lambda_l2': 10,
                 'feature_fraction': 0.8,
+                'feature_fraction_bynode': 1.0,
                 'bagging_fraction': 0.8,
                 'bagging_freq': 4,
+                'min_data_in_leaf': 20,
                 'learning_rate': 0.05,
                 'seed': seed,
                 'nthread': 28,
@@ -172,13 +175,13 @@ def lgb(x_train, y_train, x_valid):
 
 
 if __name__ == '__main__':
-    train_json=pd.read_json("data/enriched_annotations_train.json")
-    test_json=pd.read_json("data/enriched_annotations_test.json")
+    train_json = pd.read_json("data/enriched_annotations_train.json")
+    test_json = pd.read_json("data/enriched_annotations_test.json")
 
 
-    train_df=get_data(train_json[:], "data/amap_traffic_train_0712")
-    test_df=get_data(test_json[:], "data/amap_traffic_test_0712")
-
+    train_df = get_data(train_json[:], "data/amap_traffic_train_0712")
+    test_df = get_data(test_json[:], "data/amap_traffic_test_0712")
+    
     select_features=["gap_mean","gap_std",
 #                      "hour_mean", "minute_mean","dayofweek_mean",
                      "gap_time_today_mean","gap_time_today_std",
@@ -200,7 +203,7 @@ if __name__ == '__main__':
                      "lane_length_mean",
                      "lane_length_std",
                      "lane_length_key",
-                     "lane_length_gap",
+#                      "lane_length_gap",
 #                      "vehicle_distances_mean_mean",
 #                      "vehicle_distances_mean_std",
 #                      "vehicle_distances_mean_key",
@@ -213,7 +216,7 @@ if __name__ == '__main__':
     train_y=train_df["label"]
     valid_x=test_df[select_features].copy()
 
-    lgb_train, lgb_test, sb, m=lgb(train_x, train_y, valid_x)
+    lgb_train, lgb_test, sb, m = lgb(train_x, train_y, valid_x)
     
     # submit
     sub=test_df[["map_id"]].copy()

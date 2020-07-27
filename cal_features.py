@@ -65,11 +65,14 @@ for idx in tqdm.tqdm(range(len(training_set))):
                         total_vehicles=[],
                         vehicle_distances_mean=[],
                         vehicle_distances_std=[],
+                        vehicle_area=[],
                         lanes=[],
                         lane_length=[],
+                        lane_width=[],
                         )
     for i in range(data['len_seq']):
         img = img_seq[i]
+        h, w = img.shape[:2]
         ##车辆检测
         box_out, seg_out = inference.inference_detector(detector,
                                                         img[..., ::-1]) # RGB -> BGR
@@ -82,11 +85,17 @@ for idx in tqdm.tqdm(range(len(training_set))):
             box_result[id] = box_out[id]
             seg_result[id] = seg_out[id]
         
+        # Calculate the union of vehicle areas
+        vehicle_mask = np.zeros((h, w), dtype=bool)
+        for segs in seg_result:
+            for seg in segs:
+                vehicle_mask |= seg
+        ann['feats']['vehicle_area'].append(vehicle_mask.mean())
+
         ##路线检测
         result = inference_model(model, img)
 
         ##绘制
-        h, w = img.shape[:2]
         lines = [line[line[:, 0] > 0]
             for line in result if len(line[line[:, 0] > 0]) > 2] # filter valid lines
         lanes = split_rectangle(lines, (w, h))
@@ -134,6 +143,8 @@ for idx in tqdm.tqdm(range(len(training_set))):
         ann['feats']['closest_vehicle_distance'].append(
             (h - closest_main_lane_bottom_centers[0, 1]) / (h - pseudo_bc[1]))
         ann['feats']['lane_length'].append((h - pseudo_bc[1]) / h)
+        ann['feats']['lane_width'].append(
+            (lanes[main_lane][:, 0].max() - lanes[main_lane][:, 0].min()) / w)
         ann['feats']['lanes'].append(len(lanes))
     enriched_annotations.append(ann)
 

@@ -97,6 +97,15 @@ def filter_lines(lrs):
     return lrs
 
 
+def area_of_polygon(polygon):
+    polygon = np.array(polygon)
+    N = len(polygon)
+    x2y1 = polygon[np.arange(1, N + 1) % N, 0].dot(polygon[:, 1])
+    x1y2 = polygon[np.arange(1, N + 1) % N, 1].dot(polygon[:, 0])
+    area = 0.5 * abs(x2y1 - x1y2)
+    return area
+
+
 def inter_point(lr1, lr2):
     """Calculate the intersection of two lines.
     Args:

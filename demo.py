@@ -204,12 +204,20 @@ if __name__ == '__main__':
                      "lane_length_std",
                      "lane_length_key",
 #                      "lane_length_gap",
+                     "lane_width_mean",
+#                      "lane_width_std",
+#                      "lane_width_key",
+#                      "lane_width_gap",
 #                      "vehicle_distances_mean_mean",
 #                      "vehicle_distances_mean_std",
 #                      "vehicle_distances_mean_key",
                      "vehicle_distances_std_mean",
 #                      "vehicle_distances_std_std",
 #                      "vehicle_distances_std_key",
+                     "vehicle_area_mean",
+#                      "vehicle_area_std",
+#                      "vehicle_area_key",
+#                      "vehicle_area_gap",
                     ]
 
     train_x=train_df[select_features].copy()

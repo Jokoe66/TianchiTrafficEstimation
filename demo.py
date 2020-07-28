@@ -86,11 +86,11 @@ def get_data(df, img_path):
     return train_df
 
 
-def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
+def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1, weights=None):
     predictors = list(train_x.columns)
     train_x = train_x.values
     test_x = test_x.values
-    folds = 20
+    folds = 10
     seed = 2029
     kf = StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed)
 
@@ -106,11 +106,13 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     for i, (train_index, test_index) in enumerate(kf.split(train_x, train_y)):
         tr_x = train_x[train_index]
         tr_y = train_y[train_index]
+        weight = weights[train_index]
         te_x = train_x[test_index]
         te_y = train_y[test_index]
 
         if clf_name == "lgb":
             train_matrix = clf.Dataset(tr_x, label=tr_y)
+            train_matrix.set_weight(weight)
             test_matrix = clf.Dataset(te_x, label=te_y)
 
             params = {
@@ -171,8 +173,8 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1):
     return train, test, test_pre_all, np.mean(f1_scores)
 
 
-def lgb(x_train, y_train, x_valid):
-    lgb_train, lgb_test, sb, cv_scores = stacking(lightgbm, x_train, y_train, x_valid, "lgb", 3)
+def lgb(x_train, y_train, x_valid, weights):
+    lgb_train, lgb_test, sb, cv_scores = stacking(lightgbm, x_train, y_train, x_valid, "lgb", 3, weights)
     return lgb_train, lgb_test, sb, cv_scores
 
 
@@ -182,6 +184,10 @@ if __name__ == '__main__':
 
 
     train_df = get_data(train_json[:], "data/amap_traffic_train_0712")
+    weights = np.array([1.0, 5.0, 2.0])
+    weights /= np.sum(weights)
+    weights *= 3 * 1.5
+    weights = pd.Series(train_df['label'].apply(lambda x: weights[int(x)]), name='weight')
     test_df = get_data(test_json[:], "data/amap_traffic_test_0712")
     
     select_features=["gap_mean","gap_std",
@@ -197,7 +203,7 @@ if __name__ == '__main__':
 #                      "main_lane_vehicles_gap",
                      "total_vehicles_mean",
                      "total_vehicles_std",
-                     "total_vehicles_key",
+#                      "total_vehicles_key",
 #                      "total_vehicles_gap",
 #                      "lanes_mean",
 #                      "lanes_std",
@@ -207,7 +213,7 @@ if __name__ == '__main__':
                      "lane_length_key",
 #                      "lane_length_gap",
                      "lane_width_mean",
-#                      "lane_width_std",
+                     "lane_width_std",
 #                      "lane_width_key",
 #                      "lane_width_gap",
 #                      "vehicle_distances_mean_mean",
@@ -215,18 +221,18 @@ if __name__ == '__main__':
 #                      "vehicle_distances_mean_key",
                      "vehicle_distances_std_mean",
 #                      "vehicle_distances_std_std",
-#                      "vehicle_distances_std_key",
+                     "vehicle_distances_std_key",
                      "vehicle_area_mean",
                      "vehicle_area_std",
                      "vehicle_area_key",
-#                      "vehicle_area_gap",
+                     "vehicle_area_gap",
                     ]
 
     train_x=train_df[select_features].copy()
     train_y=train_df["label"]
     valid_x=test_df[select_features].copy()
 
-    lgb_train, lgb_test, sb, m = lgb(train_x, train_y, valid_x)
+    lgb_train, lgb_test, sb, m = lgb(train_x, train_y, valid_x, weights)
     
     # submit
     sub=test_df[["map_id"]].copy()

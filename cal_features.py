@@ -77,7 +77,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
         box_out, seg_out = inference.inference_detector(
             detector, img[..., ::-1]) # RGB -> BGR
         vehicle_labels = [
-            'person', 'car', 'motorcycle', 'bus', 'truck', 'bicycle', ]
+            'car', 'motorcycle', 'bus', 'truck', 'bicycle', ]
         vehicle_ids = [
             detector.CLASSES.index(label) for label in vehicle_labels]
 
@@ -90,18 +90,19 @@ for idx in tqdm.tqdm(range(len(training_set))):
         assert box_result.shape[1] == 5
         assert seg_result.shape[1:] == (h, w)
         assert len(box_result) == len(seg_result)
+
         # preserve high confident ones
         preserve = box_result[:, -1] >= 0.5
         # preserve those above the bottom boundary (0.9 * h)
         # this condition filters out the poetential detection of the car that
         # the camera is mounted on.
-        preserve &= (box_result[:, 3] < 0.9 * h)
+        preserve &= (box_result[:, 3] < 0.95 * h)
         box_result = box_result[preserve]
         seg_result = seg_result[preserve]
-        
         # Calculate the union of vehicle areas
         vehicle_mask = seg_result.any(axis=0)
         ann['feats']['vehicle_area'].append(vehicle_mask.mean())
+        
 
         ##路线检测
         result = inference_model(model, img)

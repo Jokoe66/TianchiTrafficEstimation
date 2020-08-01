@@ -1,2 +1,5 @@
 *.pth
 *.pyc
+data/
+sub*.json
+work_dirs/

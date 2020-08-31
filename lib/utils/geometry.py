@@ -141,7 +141,8 @@ def split_rectangle(lines, shape, bounds=(0, 1, 0.25, 1)):
     if len(lrs) > 1:
         inter_points = list(map(inter_point, lrs[:-1], lrs[1:]))
         y_min = max(_[1] for _ in inter_points)
-        assert y_min < y_max
+    if y_min >= y_max:
+        y_min = bounds[2]
 
     lrs.insert(0, LinregressResult(-0.001, y_min, 0, 0, 0))
     lrs.insert(len(lrs), LinregressResult(0.001, y_min, 0, 0, 0))

@@ -10,10 +10,10 @@ from torchvision.transforms import Compose, Normalize, Resize, ToTensor
 
 class ImageSequenceDataset(Dataset):
 
-    img_root = 'data/amap_traffic_%s_0712/'
-    ann_file = 'data/amap_traffic_annotations_%s.json'
-    img_root = 'data/amap_traffic_b_%s_0828'
-    ann_file = 'data/amap_traffic_annotations_b_%s_0828.json'
+    img_root = '../data/amap_traffic_%s_0712/'
+    ann_file = '../data/amap_traffic_annotations_%s.json'
+    img_root = '../data/amap_traffic_b_%s_0828'
+    ann_file = '../data/amap_traffic_annotations_b_%s_0828.json'
 
     def __init__(self, split='train', transform=None, **kwargs):
         self.img_root = self.img_root % split

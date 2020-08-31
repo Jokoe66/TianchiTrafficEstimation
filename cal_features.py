@@ -9,7 +9,7 @@ import mmcv
 import torch
 import torchvision.transforms as transforms
 import numpy as np
-from mmdet.apis import inference
+from lib.mmdetection.mmdet.apis import inference
 
 from lib import ImageSequenceDataset
 from lib.lanedet.utils.config import Config
@@ -39,6 +39,7 @@ checkpoint = ('https://open-mmlab.s3.ap-northeast-2.amazonaws.com/mmdetection'
               '/v2.0/cascade_rcnn/cascade_mask_rcnn_r50_fpn_20e_coco/'
               'cascade_mask_rcnn_r50_fpn_20e_coco_bbox_mAP-0.419__segm_mAP-'
               '0.365_20200504_174711-4af8e66e.pth')
+checkpoint = '../user_data/cascade_mask_rcnn_r50_fpn_20e_coco.pth'
 
 detector = inference.init_detector(config,
                                    checkpoint=checkpoint, device=args.device)
@@ -46,6 +47,7 @@ detector = inference.init_detector(config,
 config_file = 'lib/lanedet/configs/culane.py'  # /path/to/config
 config = Config.fromfile(config_file)
 config.test_model = 'lib/lanedet/checkpoints/culane_18.pth'  # /path/to/model_weight
+config.test_model = '../user_data/culane_18.pth'
 model = init_model(config, args.device)
 # 训练集初始化
 training_set = ImageSequenceDataset(
@@ -164,7 +166,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
         if args.save_tag:
             save_file += f'_{args.save_tag}'
         save_file += '.json'
-        save_path = os.path.join('data', save_file)
+        save_path = os.path.join('../user_data', save_file)
         with open(save_path, 'w') as f:
             json.dump(enriched_annotations, f)
 

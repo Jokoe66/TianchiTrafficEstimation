@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import os
 from collections import defaultdict
 
 import pandas as pd
@@ -8,7 +9,7 @@ import lightgbm
 from sklearn.metrics import f1_score, log_loss
 from sklearn.model_selection import StratifiedKFold, KFold
 
-def get_data(df, img_path):
+def get_data(df):
     map_id_list=[]
     label=[]
     key_frame_list=[]
@@ -179,18 +180,22 @@ def lgb(x_train, y_train, x_valid, weights):
 
 
 if __name__ == '__main__':
-    train_json = pd.read_json("data/enriched_annotations_train.json")
-    test_json = pd.read_json("data/enriched_annotations_test.json")
+    data_root = '../data'
+    user_data_root = '../user_data'
+    train_json = pd.read_json(os.path.join(
+        user_data_root, "enriched_annotations_train.json"))
+    test_json = pd.read_json(os.path.join(
+        user_data_root, "enriched_annotations_test_b.json"))
 
 
-    train_df = get_data(train_json[:], "data/amap_traffic_train_0712")
+    train_df = get_data(train_json[:])
     weights = np.array([1.0, 5.0, 2.0])
     weights /= np.sum(weights)
     weights *= 3 * 1.5
     weights = pd.Series(train_df['label'].apply(lambda x: weights[int(x)]), name='weight')
-    test_df = get_data(test_json[:], "data/amap_traffic_test_0712")
+    test_df = get_data(test_json[:])
     
-    select_features=["gap_mean","gap_std",
+    select_features=[#"gap_mean","gap_std",
 #                      "hour_mean", "minute_mean","dayofweek_mean",
                      "gap_time_today_mean","gap_time_today_std",
                      "closest_vehicle_distance_mean",
@@ -239,10 +244,13 @@ if __name__ == '__main__':
     sub["pred"]=np.argmax(lgb_test,axis=1)
 
     result_dic=dict(zip(sub["map_id"],sub["pred"]))
-    with open("data/amap_traffic_annotations_test.json", "r") as f:
+    with open(
+        os.path.join(data_root, "amap_traffic_annotations_b_test_0828.json"),
+        "r"
+        ) as f:
         content=f.read()
     content=json.loads(content)
     for i in content["annotations"]:
         i['status']=result_dic[int(i["id"])]
-    with open(f"sub_{m:.4f}.json","w") as f:
+    with open(f"../prediction_result/result.json","w") as f:
         f.write(json.dumps(content))

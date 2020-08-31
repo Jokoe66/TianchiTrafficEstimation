@@ -15,8 +15,9 @@ kiwisolver==1.2.0
 lightgbm==2.3.1
 Markdown==3.2.2
 matplotlib==3.2.2
-mmcv==0.5.9
-mmcv-full==1.0.4
+mmcv==1.0.5
+mmcv-full==1.0.5
+mmdet==2.3.0
 numpy==1.19.1
 oauthlib==3.1.0
 opencv-python==4.3.0.36

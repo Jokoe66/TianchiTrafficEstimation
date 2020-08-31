@@ -9,7 +9,7 @@ import mmcv
 import torch
 import torchvision.transforms as transforms
 import numpy as np
-from lib.mmdetection.mmdet.apis import inference
+from mmdet.apis import inference
 
 from lib import ImageSequenceDataset
 from lib.lanedet.utils.config import Config

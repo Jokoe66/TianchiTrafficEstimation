@@ -15,9 +15,14 @@ class ImageSequenceDataset(Dataset):
     img_root = '../data/amap_traffic_b_%s_0828'
     ann_file = '../data/amap_traffic_annotations_b_%s_0828.json'
 
-    def __init__(self, split='train', transform=None, **kwargs):
-        self.img_root = self.img_root % split
-        self.ann_file = self.ann_file % split
+    def __init__(self,
+                 img_root=None,
+                 ann_file=None,
+                 split='train',
+                 transform=None,
+                 **kwargs):
+        self.img_root = img_root if img_root else self.img_root % split
+        self.ann_file = ann_file if ann_file else self.ann_file % split
         self._load_anns()
         self.img_norm = dict(mean=[123.675, 116.28, 103.53],
                              std=[58.395, 57.12, 57.375])
@@ -36,6 +41,8 @@ class ImageSequenceDataset(Dataset):
     def _load_anns(self):
         with open(self.ann_file) as f:
             self.anns = json.load(f)['annotations']
+        for ann in self.anns:
+            ann['frames'].sort(key=lambda x:x['frame_name'])
     
     def __getitem__(self, idx):
         ann = self.anns[idx]
@@ -57,6 +64,8 @@ class ImageSequenceDataset(Dataset):
         for i in range(self.seq_max_len):
             if i < len(ann['frames']):
                 frame = ann['frames'][i]
+                assert int(frame['frame_name'][0]) == i + 1, \
+                    f'{frame["frame_name"]} is not {i+1}th frame'
                 if frame['frame_name'] == ann['key_frame']:
                     ann['key'] = i
                 img = Image.open(os.path.join(self.img_root, 

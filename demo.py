@@ -49,6 +49,7 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1, weights=None)
     f1_scores = []
     f1s = []
     cv_rounds = []
+    feature_importance = pd.DataFrame()
 
     for i, (train_index, test_index) in enumerate(kf.split(train_x, train_y)):
         tr_x = train_x[train_index]
@@ -87,23 +88,21 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1, weights=None)
             num_round = 4000
             early_stopping_rounds = 100
             if test_matrix:
-                model = clf.train(params, train_matrix, num_round, valid_sets=test_matrix, verbose_eval=50,
-                                  #feval=acc_score_vali,
-                                  early_stopping_rounds=early_stopping_rounds
-                                  )
-                print("\n".join(("%s: %.2f" % x) for x in
-                                list(sorted(zip(predictors, model.feature_importance("gain")), key=lambda x: x[1],
-                                       reverse=True))[:200]
-                                ))
+                model = clf.train(params, train_matrix, num_round,
+                        valid_sets=test_matrix, verbose_eval=50,
+                        #feval=acc_score_vali,
+                        early_stopping_rounds=early_stopping_rounds)
+                feature_importance = feature_importance.append(pd.DataFrame(
+                    {'importance': model.feature_importance("gain")}, index=predictors))
                 pre = model.predict(te_x, num_iteration=model.best_iteration)
                 pred = model.predict(test_x, num_iteration=model.best_iteration)
                 train[test_index] = pre
                 test_pre[i, :] = pred
                 cv_scores.append(log_loss(te_y, pre))
                 
-                f1_list=f1_score(te_y,np.argmax(pre,axis=1),average=None)
+                f1_list = f1_score(te_y,np.argmax(pre,axis=1),average=None)
                 f1s.append(f1_list)
-                f1=0.2*f1_list[0]+0.2*f1_list[1]+0.6*f1_list[2]
+                f1 = 0.1 * f1_list[0] + 0.2 * f1_list[1] + 0.3 * f1_list[2] + 0.4 * f1_list[3]
                 
                 f1_scores.append(f1)
                 cv_rounds.append(model.best_iteration)
@@ -117,11 +116,24 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1, weights=None)
     print("%s_score_mean:" % clf_name, np.mean(cv_scores), np.mean(f1_scores))
     print("%s_score_std:" % clf_name, np.std(cv_scores))
     print(f"f1_scores_mean: {np.mean(f1s, axis=0)}")
-    return train, test, test_pre_all, np.mean(f1_scores)
+    feature_importance = feature_importance.groupby(level=0).mean().sort_values(
+        by='importance', ascending=False)
+    print(feature_importance)
+    features = feature_importance.index.tolist()
+    return train, test, test_pre_all, np.mean(f1_scores), features
 
 
 def lgb(x_train, y_train, x_valid, weights):
-    lgb_train, lgb_test, sb, cv_scores = stacking(lightgbm, x_train, y_train, x_valid, "lgb", 4, weights)
+    lgb_train, lgb_test, sb, cv_scores, features = stacking(
+        lightgbm, x_train, y_train, x_valid, "lgb", 4, weights)
+    
+    # select important features
+    important_features = features[:int(len(features) * 0.7)]
+    x_train = x_train[important_features]
+    x_valid = x_valid[important_features]
+    lgb_train, lgb_test, sb, cv_scores, features = stacking(
+        lightgbm, x_train, y_train, x_valid, "lgb", 4, weights)
+
     return lgb_train, lgb_test, sb, cv_scores
 
 
@@ -129,7 +141,7 @@ if __name__ == '__main__':
     data_root = '../data'
     user_data_root = '../user_data'
     train_json = pd.read_json(os.path.join(
-        user_data_root, "enriched_annotations_train.json"))
+        user_data_root, "enriched_annotations_train_final.json"))
     test_json = train_json
     # uncomment before submitting
     #test_json = pd.read_json(os.path.join(
@@ -137,7 +149,7 @@ if __name__ == '__main__':
 
 
     train_df = get_data(train_json[:])
-    weights = np.array([1.0, 5.0, 2.0, 2.0])
+    weights = np.array([0.6, 5.0, 2.0, 0.4])
     weights /= np.sum(weights)
     weights *= 3 * 1.5
     weights = pd.Series(train_df['label'].apply(lambda x: weights[int(x)]), name='weight')
@@ -146,31 +158,31 @@ if __name__ == '__main__':
     select_features=["closest_vehicle_distance_mean",
                      "closest_vehicle_distance_std",
                      "closest_vehicle_distance_key",
-#                      "closest_vehicle_distance_gap",
+                     "closest_vehicle_distance_gap",
                      "main_lane_vehicles_mean",
-#                      "main_lane_vehicles_std",
-#                      "main_lane_vehicles_key",
-#                      "main_lane_vehicles_gap",
+                     "main_lane_vehicles_std",
+                     "main_lane_vehicles_key",
+                     "main_lane_vehicles_gap",
                      "total_vehicles_mean",
                      "total_vehicles_std",
-#                      "total_vehicles_key",
-#                      "total_vehicles_gap",
-#                      "lanes_mean",
-#                      "lanes_std",
-#                      "lanes_key",
+                     "total_vehicles_key",
+                     "total_vehicles_gap",
+                     "lanes_mean",
+                     "lanes_std",
+                     "lanes_key",
                      "lane_length_mean",
                      "lane_length_std",
                      "lane_length_key",
-#                      "lane_length_gap",
+                     "lane_length_gap",
                      "lane_width_mean",
                      "lane_width_std",
-#                      "lane_width_key",
-#                      "lane_width_gap",
-#                      "vehicle_distances_mean_mean",
-#                      "vehicle_distances_mean_std",
-#                      "vehicle_distances_mean_key",
+                     "lane_width_key",
+                     "lane_width_gap",
+                     "vehicle_distances_mean_mean",
+                     "vehicle_distances_mean_std",
+                     "vehicle_distances_mean_key",
                      "vehicle_distances_std_mean",
-#                      "vehicle_distances_std_std",
+                     "vehicle_distances_std_std",
                      "vehicle_distances_std_key",
                      "vehicle_area_mean",
                      "vehicle_area_std",

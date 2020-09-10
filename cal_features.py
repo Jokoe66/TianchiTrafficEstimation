@@ -18,6 +18,8 @@ from lib.utils.visualize import show_lanes
 from lib.utils.geometry import split_rectangle, point_in_polygon
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--img_root', type=str, default='')
+parser.add_argument('--ann_file', type=str, default='')
 parser.add_argument('--split', type=str, default='train', help='train or test')
 parser.add_argument('--device', type=str, default='cuda:0', help='device')
 parser.add_argument('--debug', action="store_true", default=False,
@@ -33,8 +35,7 @@ if debug:
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
 ##车辆检测初始化
-config = ('lib/mmdetection/configs/cascade_rcnn/'
-          'cascade_mask_rcnn_r50_fpn_1x_coco.py')
+config = 'configs/cascade_rcnn/cascade_mask_rcnn_r50_fpn_20e_coco.py'
 checkpoint = ('https://open-mmlab.s3.ap-northeast-2.amazonaws.com/mmdetection'
               '/v2.0/cascade_rcnn/cascade_mask_rcnn_r50_fpn_20e_coco/'
               'cascade_mask_rcnn_r50_fpn_20e_coco_bbox_mAP-0.419__segm_mAP-'
@@ -51,7 +52,9 @@ config.test_model = '../user_data/culane_18.pth'
 model = init_model(config, args.device)
 # 训练集初始化
 training_set = ImageSequenceDataset(
-    args.split,
+    img_root=args.img_root,
+    ann_file=args.ann_file,
+    split=args.split,
     transform=transforms.Compose([
         lambda x:mmcv.imresize(x, (1280, 720)),
         lambda x:torch.tensor(x)]),

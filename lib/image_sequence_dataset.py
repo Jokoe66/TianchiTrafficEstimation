@@ -1,12 +1,40 @@
 import json
 import os
+from collections import defaultdict
 
 from PIL import Image
 import numpy as np
 import torch
 import mmcv
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Sampler
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
+
+
+class ClassBalancedSubsetSampler(Sampler):
+
+    def __init__(self, dataset, indices):
+        self.cat2inds = defaultdict(list)
+        for ind in indices:
+            self.cat2inds[(dataset.get_cat_ids(ind))].append(ind)
+        self.max_num_inds = max(len(_) for _ in self.cat2inds.values())
+        self.epoch = 0
+
+    def __iter__(self):
+        np.random.seed(self.epoch)
+        all_inds = np.empty((0, self.max_num_inds), dtype=int)
+        for cat, inds in self.cat2inds.items():
+            num_append = self.max_num_inds - len(inds)
+            inds_append = (inds * (1 + num_append // len(inds))
+                           + inds[:num_append % len(inds)])
+            np.random.shuffle(inds_append)
+            all_inds = np.vstack([all_inds, inds_append])
+        all_inds = all_inds.transpose().flatten().tolist()
+        self.epoch += 1
+        return iter(all_inds)
+
+    def __len__(self):
+        return self.max_num_inds * len(self.cat2inds)
+
 
 class ImageSequenceDataset(Dataset):
 
@@ -43,7 +71,10 @@ class ImageSequenceDataset(Dataset):
             self.anns = json.load(f)['annotations']
         for ann in self.anns:
             ann['frames'].sort(key=lambda x:x['frame_name'])
-    
+
+    def get_cat_ids(self, idx):
+        return self.anns[idx]['status']
+
     def __getitem__(self, idx):
         ann = self.anns[idx]
         if self.key_frame_only:
@@ -72,7 +103,7 @@ class ImageSequenceDataset(Dataset):
                     ann['id'], frame['frame_name']))
                 img = np.array(img)
             else:
-                img = np.zeros_like(np.array(imgs[0]))
+                img = np.zeros(imgs[0].shape[-2:] + (3,))
                 img = img + self.img_norm['mean']
                 img = img.astype('uint8')
             if self.transform:

@@ -6,6 +6,7 @@ from . import classification
 from . import lanedet
 from . import utils
 
-from .image_sequence_dataset import ImageSequenceDataset
+from .image_sequence_dataset import (ImageSequenceDataset,
+        ClassBalancedSubsetSampler)
 
-__all__ = ['ImageSequenceDataset', ]
+__all__ = ['ImageSequenceDataset', 'ClassBalancedSubsetSampler']

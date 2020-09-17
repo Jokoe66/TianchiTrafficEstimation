@@ -1,18 +1,22 @@
 # [天池交通状况预测比赛](https://tianchi.aliyun.com/competition/entrance/531809/information)
 
 ### Result
-|       Method        | F1_0 | F1_1 | F1_2 | score |
+|       Method        | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | score |
 |       :---:         | :---:| :---:| :---:| :---: |
 |time based baseline  | 0.905|0.034 | 0.713| 0.616 |
 |+vehicle+lane        | 0.930|0.136 | 0.770| 0.675 |
 |+class balance       | 0.921|0.305 | 0.777|**0.712**|
 
 ### Taks1: Scene Recognition
-Directly classfy scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.
+Directly classify scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.
 
-|       Method        | F1_0 | F1_1 | F1_2 | score |
-|       :---:         | :---:| :---:| :---:| :---: |
-|multi-classification | 0.84 | 0    |  0   | 0.17  |
+|    Backbone    | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
+|     :---:                | :---:| :---:| :---:| :---: | :--:  |
+|   Resnet50               | 0.00 | 0    |  0   | 0.67  | 0.268 |
+|  Resnet50 + re-weighting | 0.00 | 0    |  0   | 0.67  | 0.268 |
+|  Resnet50 + oversampling | 0.44 | 0.26 | 0.42 | 0.65  | 0.483 |
+|  Resnet101 + oversampling| 0.44 | 0.46 | 0.57 | 0.76  | 0.610 |
+|  Resnet101 + oversampling + GRU| 0.60 | 0.48 | 0.52 | 0.91  | 0.676 |
 
 
 ### Task2: Visual Odometry

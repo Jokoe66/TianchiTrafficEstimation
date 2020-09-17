@@ -18,6 +18,19 @@ Directly classify scene images into several traffic status (unimpeded, congested
 |  Resnet101 + oversampling| 0.44 | 0.46 | 0.57 | 0.76  | 0.610 |
 |  Resnet101 + oversampling + GRU| 0.60 | 0.48 | 0.52 | 0.91  | 0.676 |
 
+#### Usage
+```shell
+python -u train.py \
+    --img_root ../data/amap_traffic_final_train_data \
+    --ann_file  ../data/amap_traffic_final_train_0906.json \
+    --lr 0.001 --device cuda:0  --max_epoch 10 --milestones 8 --batch_size 32
+```
+```shell
+python -u test.py \
+    --img_root ../data/amap_traffic_final_train_data \
+    --ann_file  ../data/amap_traffic_final_train_0906.json \
+    --device cuda:0 --model_path /path/to/saved/model
+```
 
 ### Task2: Visual Odometry
 

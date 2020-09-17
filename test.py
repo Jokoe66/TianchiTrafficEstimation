@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import f1_score
 
 from lib import ImageSequenceDataset
-from lib.classification import Classifier
+from lib.models import Classifier
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

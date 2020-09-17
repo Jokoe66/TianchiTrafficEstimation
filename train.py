@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from sklearn.model_selection import KFold
 
 from lib import ImageSequenceDataset, ClassBalancedSubsetSampler
-from lib.classification import Classifier
+from lib.models import Classifier
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

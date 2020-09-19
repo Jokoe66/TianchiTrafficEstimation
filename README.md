@@ -20,10 +20,10 @@ Directly classify scene images into several traffic status (unimpeded, congested
 
 #### Usage
 ```shell
-python -u train.py \
-    --img_root ../data/amap_traffic_final_train_data \
-    --ann_file  ../data/amap_traffic_final_train_0906.json \
-    --lr 0.001 --device cuda:0  --max_epoch 10 --milestones 8 --batch_size 32
+CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node 1 train.py \
+    --img_root /path/to/amap_traffic_final_train_data \
+    --ann_file  /path/to/amap_traffic_final_train_0906.json \
+    --lr 0.001 --max_epoch 10 --milestones 8  --samples_per_gpu 8
 ```
 ```shell
 python -u test.py \

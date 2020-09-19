@@ -1,39 +1,11 @@
-import json
 import os
-from collections import defaultdict
 
 from PIL import Image
 import numpy as np
 import torch
 import mmcv
-from torch.utils.data import Dataset, DataLoader, Sampler
+from torch.utils.data import Dataset
 from torchvision.transforms import Compose, Normalize, Resize, ToTensor
-
-
-class ClassBalancedSubsetSampler(Sampler):
-
-    def __init__(self, dataset, indices):
-        self.cat2inds = defaultdict(list)
-        for ind in indices:
-            self.cat2inds[(dataset.get_cat_ids(ind))].append(ind)
-        self.max_num_inds = max(len(_) for _ in self.cat2inds.values())
-        self.epoch = 0
-
-    def __iter__(self):
-        np.random.seed(self.epoch)
-        all_inds = np.empty((0, self.max_num_inds), dtype=int)
-        for cat, inds in self.cat2inds.items():
-            num_append = self.max_num_inds - len(inds)
-            inds_append = (inds * (1 + num_append // len(inds))
-                           + inds[:num_append % len(inds)])
-            np.random.shuffle(inds_append)
-            all_inds = np.vstack([all_inds, inds_append])
-        all_inds = all_inds.transpose().flatten().tolist()
-        self.epoch += 1
-        return iter(all_inds)
-
-    def __len__(self):
-        return self.max_num_inds * len(self.cat2inds)
 
 
 class ImageSequenceDataset(Dataset):
@@ -67,8 +39,7 @@ class ImageSequenceDataset(Dataset):
         self.key_frame_only = kwargs.get('key_frame_only', False)
         
     def _load_anns(self):
-        with open(self.ann_file) as f:
-            self.anns = json.load(f)['annotations']
+        self.anns = mmcv.load(self.ann_file)['annotations']
         for ann in self.anns:
             ann['frames'].sort(key=lambda x:x['frame_name'])
 

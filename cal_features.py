@@ -1,7 +1,10 @@
 import pdb
 import argparse
+import pickle
 import json
 import os
+import sys
+sys.path.insert(0, 'lib/mmdetection')
 
 import tqdm
 from PIL import Image
@@ -34,16 +37,16 @@ debug_dir = args.debug_dir
 if debug:
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
-##车辆检测初始化
+## 车辆检测初始化
 config = 'configs/cascade_rcnn/cascade_mask_rcnn_r50_fpn_20e_coco.py'
-checkpoint = ('https://open-mmlab.s3.ap-northeast-2.amazonaws.com/mmdetection'
-              '/v2.0/cascade_rcnn/cascade_mask_rcnn_r50_fpn_20e_coco/'
-              'cascade_mask_rcnn_r50_fpn_20e_coco_bbox_mAP-0.419__segm_mAP-'
-              '0.365_20200504_174711-4af8e66e.pth')
 checkpoint = '../user_data/cascade_mask_rcnn_r50_fpn_20e_coco.pth'
-
-detector = inference.init_detector(config,
-                                   checkpoint=checkpoint, device=args.device)
+detector = inference.init_detector(
+    config, checkpoint=checkpoint, device=args.device)
+## 障碍物检测初始化
+config = 'configs/barrier/cascade_rcnn_r2_101_fpn_barrier.py'
+checkpoint = '../user_data/cascade_rcnn_r2_101_fpn_46e_barrier.pth'
+obs_detector = inference.init_detector(
+    config, checkpoint=checkpoint, device=args.device)
 # 道路检测初始化
 config_file = 'lib/lanedet/configs/culane.py'  # /path/to/config
 config = Config.fromfile(config_file)
@@ -76,8 +79,17 @@ for idx in tqdm.tqdm(range(len(training_set))):
                         lane_width=[],
                         )
     for i in range(data['len_seq']):
+        ann['frames'][i]['feats'] = dict()
         img = img_seq[i]
         h, w = img.shape[:2]
+        # 障碍物检测
+        box_out = inference.inference_detector(
+            obs_detector, img[..., ::-1]) # RGB -> BGR
+        box_result = np.vstack(box_out)
+        preserve = box_result[:, -1] >= 0.5
+        box_result = box_result[preserve]
+        ann['frames'][i]['feats']['obstacles'] = box_result
+
         ##车辆检测
         box_out, seg_out = inference.inference_detector(
             detector, img[..., ::-1]) # RGB -> BGR
@@ -107,7 +119,8 @@ for idx in tqdm.tqdm(range(len(training_set))):
         # Calculate the union of vehicle areas
         vehicle_mask = seg_result.any(axis=0)
         ann['feats']['vehicle_area'].append(vehicle_mask.mean())
-        
+        ann['frames'][i]['feats']['vehicles'] = box_result
+        ann['frames'][i]['feats']['vehicle_mask'] = vehicle_mask
 
         ##路线检测
         result = inference_model(model, img)
@@ -118,6 +131,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
         lanes = split_rectangle(lines, (w, h), bounds=(0, 1, 0.25, 1.0))
         assert len(lanes) > 0
         main_lane = [point_in_polygon([w / 2, h], _) for _ in lanes].index(True)
+        ann['frames'][i]['feats']['main_lane'] = lanes[main_lane].flatten()
         if debug:
             img_to_show = img.copy()[..., ::-1]
             img_to_show = detector.show_result(img_to_show,
@@ -131,7 +145,6 @@ for idx in tqdm.tqdm(range(len(training_set))):
 
         bottom_centers = vehicles[:, 2:4] # bottom-right points
         bottom_centers[:, 0] -= 0.5 * (vehicles[:, 2] - vehicles[:, 0])
-        bottom_centers
         ann['feats']['total_vehicles'].append(len(vehicles))
         # append a pseudo bottom center (farthest end of the mainlane)
         # to avoid empty bottom_centers
@@ -168,8 +181,8 @@ for idx in tqdm.tqdm(range(len(training_set))):
         save_file = f'enriched_annotations_{args.split}'
         if args.save_tag:
             save_file += f'_{args.save_tag}'
-        save_file += '.json'
+        save_file += '.pkl'
         save_path = os.path.join('../user_data', save_file)
-        with open(save_path, 'w') as f:
-            json.dump(enriched_annotations, f)
+        with open(save_path, 'wb') as f:
+            pickle.dump(enriched_annotations, f)
 

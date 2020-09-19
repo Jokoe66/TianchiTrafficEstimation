@@ -12,11 +12,12 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from sklearn.model_selection import KFold
 from sklearn.metrics import f1_score
-from mmdet.apis.test import collect_results_cpu
 
 from lib.datasets import (ImageSequenceDataset, ClassBalancedSubsetSampler,
-    DistributedClassBalancedSubsetSampler, DistributedSubsetSampler)
+                          DistributedClassBalancedSubsetSampler,
+                          DistributedSubsetSampler)
 from lib.models import Classifier
+from lib.utils.dist_utils import collect_results_cpu
 
 
 def eval(model, dataloader, **kwargs):
@@ -154,8 +155,6 @@ if __name__ == '__main__':
     parser.add_argument('--ann_file', type=str, default='')
     parser.add_argument('--key_frame_only', action='store_true',
                         default=False)
-    parser.add_argument('--distributed', action='store_true',
-                        default=False)
     parser.add_argument('--samples_per_gpu', type=int, default=32)
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--max_epoch', type=int, default=10)
@@ -163,9 +162,8 @@ if __name__ == '__main__':
     parser.add_argument('--milestones', nargs='+', type=int,
                         default=[8, ])
     args = parser.parse_args()
-    if args.distributed:
-        torch.distributed.init_process_group('nccl')
-        torch.cuda.set_device(args.local_rank)
+    torch.distributed.init_process_group('nccl')
+    torch.cuda.set_device(args.local_rank)
 
     lstm = None if args.key_frame_only else 128
 
@@ -209,8 +207,7 @@ if __name__ == '__main__':
             #pretrained='open-mmlab://res2net101_v1d_26w_4s',
             pretrained='torchvision://resnet101',
             num_classes=4, lstm=lstm).to(args.local_rank)
-        if args.distributed:
-            model = torch.nn.parallel.DistributedDataParallel(
+        model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[args.local_rank])
         output = train(model, train_loader,
             val_dataloader=val_loader,

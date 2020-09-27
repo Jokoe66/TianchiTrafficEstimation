@@ -4,6 +4,7 @@ import pickle
 import json
 import os
 import sys
+from collections import defaultdict
 sys.path.insert(0, 'lib/mmdetection')
 
 from PIL import Image
@@ -46,11 +47,18 @@ config = 'configs/cascade_rcnn/cascade_mask_rcnn_r50_fpn_20e_coco.py'
 checkpoint = '../user_data/cascade_mask_rcnn_r50_fpn_20e_coco.pth'
 detector = inference.init_detector(
     config, checkpoint=checkpoint, device=args.device)
-# 障碍物检测初始化
-config = 'configs/barrier/cascade_rcnn_r2_101_fpn_barrier.py'
-checkpoint = '../user_data/cascade_rcnn_r2_101_fpn_46e_barrier.pth'
-obs_detector = inference.init_detector(
+## 障碍物检测初始化
+config = 'configs/barrier/cascade_rcnn_r2_101_fpn_obstacles.py'
+checkpoints = [f'../user_data/cascade_rcnn_r2_101_fpn_obstacles_{i}.pth'
+        for i in range(0, 6)]
+obs_detectors = [inference.init_detector(
     config, checkpoint=checkpoint, device=args.device)
+    for checkpoint in checkpoints]
+id2obs_det = defaultdict(int) # default to 0
+if args.split == 'train':
+    for i in range(1, 6):
+        for _ in mmcv.load(f'../user_data/obstacles_coco_val_{i}.json')['images']:
+            id2obs_det[_['sequence_id']] = i
 # 道路检测初始化
 config_file = 'lib/lanedet/configs/culane.py'  # /path/to/config
 config = Config.fromfile(config_file)
@@ -70,7 +78,7 @@ enriched_annotations = [] #输出数据集
 depth = Depthdetect()
 for idx in tqdm.tqdm(range(len(training_set))):
     data = training_set[idx]
-    ann = training_set.anns[idx]  # id_dis_status_variance中的一项
+    ann = training_set.anns[idx]
     img_seq = data['imgs'].numpy().transpose(3, 0, 1, 2)
     ann['feats'] = dict(closest_vehicle_distance=[],
                         main_lane_vehicles=[],
@@ -81,6 +89,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
                         lanes=[],
                         lane_length=[],
                         lane_width=[],
+                        num_obstacles=[],
                         )
     for i in range(data['len_seq']):
         ann['frames'][i]['feats'] = dict()
@@ -93,10 +102,11 @@ for idx in tqdm.tqdm(range(len(training_set))):
         ann['frames'][i]['feats']['dep'] = dep
         # 障碍物检测
         box_out = inference.inference_detector(
-            obs_detector, img[..., ::-1]) # RGB -> BGR
+            obs_detectors[id2obs_det[ann['id']]], img[..., ::-1]) # RGB -> BGR
         box_result = np.vstack(box_out)
         preserve = box_result[:, -1] >= 0.5
         box_result = box_result[preserve]
+        ann['feats']['num_obstacles'].append(len(box_result))
         ann['frames'][i]['feats']['obstacles'] = box_result
 
         ##车辆检测
@@ -129,7 +139,8 @@ for idx in tqdm.tqdm(range(len(training_set))):
         vehicle_mask = seg_result.any(axis=0)
         ann['feats']['vehicle_area'].append(vehicle_mask.mean())
         ann['frames'][i]['feats']['vehicles'] = box_result
-        ann['frames'][i]['feats']['vehicle_mask'] = vehicle_mask
+        ann['frames'][i]['feats']['vehicle_mask'] = mmcv.imresize(
+            vehicle_mask.astype('uint8'), (128, 72))
 
         ##路线检测
         result = inference_model(model, img)

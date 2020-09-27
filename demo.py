@@ -140,12 +140,12 @@ def lgb(x_train, y_train, x_valid, weights):
 if __name__ == '__main__':
     data_root = '../data'
     user_data_root = '../user_data'
-    train_json = pd.read_json(os.path.join(
-        user_data_root, "enriched_annotations_train_final.json"))
+    train_json = pd.DataFrame(pd.read_pickle(os.path.join(
+        user_data_root, "enriched_annotations_train_final_cv.pkl")))
     test_json = train_json
     # uncomment before submitting
-    #test_json = pd.read_json(os.path.join(
-    #    user_data_root, "enriched_annotations_test_final.json"))
+    test_json = pd.DataFrame(pd.read_pickle(os.path.join(
+        user_data_root, "enriched_annotations_test_final.pkl")))
 
 
     train_df = get_data(train_json[:])
@@ -188,6 +188,9 @@ if __name__ == '__main__':
                      "vehicle_area_std",
                      "vehicle_area_key",
                      "vehicle_area_gap",
+                     "num_obstacles_mean",
+                     "num_obstacles_std",
+                     "num_obstacles_key",
                     ]
 
     train_x = train_df[select_features].copy()
@@ -198,7 +201,6 @@ if __name__ == '__main__':
     
     # submit
     # uncomment before submmiting
-    '''
     sub=test_df[["id"]].copy()
     sub["pred"]=np.argmax(lgb_test,axis=1)
 
@@ -210,7 +212,6 @@ if __name__ == '__main__':
         content = f.read()
     content = json.loads(content)
     for i in content["annotations"]:
-        i['status'] = result_dic[int(i["id"])]
+        i['status'] = result_dic[i["id"]]
     with open(f"result.json","w") as f:
         f.write(json.dumps(content))
-    '''

@@ -18,6 +18,11 @@ Directly classify scene images into several traffic status (unimpeded, congested
 |  Resnet101 + oversampling| 0.44 | 0.46 | 0.57 | 0.76  | 0.610 |
 |  Resnet101 + oversampling + GRU| 0.60 | 0.48 | 0.52 | 0.91  | 0.676 |
 
+|    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
+|     :---:                | :---:| :---:| :---:| :---: | :--:  |
+|  Baseline                | 0.74 | 0.14 | 0.45 | 0.93  | 0.610 |
+|  Baseline + feat_mask    | 0.80 | 0.16 | 0.50 | 0.97  | 0.650 |
+|  Baseline + feat_mask + feat_vector | 0.83 | 0.17 | 0.53 | 0.98  | 0.669 |
 #### Usage
 ```shell
 CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node 1 train.py \

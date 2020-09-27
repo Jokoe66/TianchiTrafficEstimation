@@ -36,13 +36,14 @@ def eval(model, dataloader, **kwargs):
                 .view(-1, *imgs.shape[1:4]))
         else:
             seq_len = 1
+        data.pop('seq_len')
         labels = data['label']
 
         imgs = imgs.to(next(self.parameters()).device)
         labels = labels.to(next(self.parameters()).device)
 
         with torch.no_grad():
-            preds = self(imgs, seq_len)
+            preds = self(imgs, seq_len, **data)
 
         all_labels = np.hstack([all_labels, labels.cpu().numpy()])
         all_preds = np.hstack([all_preds,
@@ -99,12 +100,13 @@ def train(self, dataloader, **kwargs):
                         .view(-1, *imgs.shape[1:4]))
             else:
                 seq_len = 1
+            data.pop('seq_len')
             labels = data['label']
 
             imgs = imgs.to(next(self.parameters()).device)
             labels = labels.to(next(self.parameters()).device)
 
-            preds = self(imgs, seq_len)
+            preds = self(imgs, seq_len, **data)
             loss = criteria(preds, labels)
             acc = (preds.argmax(1) == labels).sum().item() / len(labels)
             all_labels = np.hstack([all_labels, labels.cpu().numpy()])
@@ -203,10 +205,14 @@ if __name__ == '__main__':
             norm_cfg=dict(type='BN', requires_grad=True),
             norm_eval=True,
             style='pytorch')
-        model = Classifier(backbone,
+        model = Classifier(
+            backbone,
             #pretrained='open-mmlab://res2net101_v1d_26w_4s',
             pretrained='torchvision://resnet101',
-            num_classes=4, lstm=lstm).to(args.local_rank)
+            num_classes=4,
+            lstm=lstm,
+            feat_mask_dim=2,
+            feat_vec_dim=10).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[args.local_rank])
         output = train(model, train_loader,

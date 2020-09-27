@@ -20,7 +20,6 @@ from lib.lanedet.utils.config import Config
 from lib.lanedet.inference import init_model, inference_model, show_result
 from lib.utils.visualize import show_lanes
 from lib.utils.geometry import split_rectangle, point_in_polygon
-
 from lib.bts.depthdetect import Depthdetect
 
 parser = argparse.ArgumentParser()
@@ -83,19 +82,16 @@ for idx in tqdm.tqdm(range(len(training_set))):
                         lanes=[],
                         lane_length=[],
                         lane_width=[],
-                        
                         )
     for i in range(data['len_seq']):
         ann['frames'][i]['feats'] = dict()
         img = img_seq[i]
         h, w = img.shape[:2]
-        #深度估计：############################################################################################
+        #深度估计：
         dep = depth.estimate(img)
         h, w = dep.shape[:2]
         dep = mmcv.imresize(dep, (int(w/ 10), int(h/ 10)))
-        ann['frames'][i]['feats']['dep']=dep
-
-        # cv2.imwrite("1.png",dep)
+        ann['frames'][i]['feats']['dep'] = dep
         # 障碍物检测
         box_out = inference.inference_detector(
             obs_detector, img[..., ::-1]) # RGB -> BGR

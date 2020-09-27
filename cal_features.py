@@ -5,9 +5,9 @@ import json
 import os
 import sys
 sys.path.insert(0, 'lib/mmdetection')
+
 from PIL import Image
 import tqdm
-import cv2#########################################################################################
 from PIL import Image
 import mmcv
 import torch
@@ -20,11 +20,16 @@ from lib.lanedet.utils.config import Config
 from lib.lanedet.inference import init_model, inference_model, show_result
 from lib.utils.visualize import show_lanes
 from lib.utils.geometry import split_rectangle, point_in_polygon
+
 from lib.bts.depthdetect import Depthdetect
+
 parser = argparse.ArgumentParser()
-parser.add_argument('--img_root', type=str, default='data/amap_traffic_final_train_data')
-parser.add_argument('--ann_file', type=str, default='data/amap_traffic_final_train_0906.json')
-parser.add_argument('--split', type=str, default='train', help='train or test')
+parser.add_argument('--img_root', type=str, 
+		    default='data/amap_traffic_final_train_data')
+parser.add_argument('--ann_file', type=str, 
+		    default='data/amap_traffic_final_train_0906.json')
+parser.add_argument('--split', type=str, 
+		    default='train', help='train or test')
 parser.add_argument('--device', type=str, default='cuda:0', help='device')
 parser.add_argument('--debug', action="store_true", default=False,
                     help='whether save visualized images')
@@ -78,7 +83,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
                         lanes=[],
                         lane_length=[],
                         lane_width=[],
-                        dep = []###################################################################
+                        
                         )
     for i in range(data['len_seq']):
         ann['frames'][i]['feats'] = dict()
@@ -86,10 +91,10 @@ for idx in tqdm.tqdm(range(len(training_set))):
         h, w = img.shape[:2]
         #深度估计：############################################################################################
         dep = depth.estimate(img)
-        x, y = dep.shape[0:2]
-        # dep = np.asarray(Image.fromarray(np.uint8(dep)).resize((122, 77)))
-        dep = cv2.resize(dep, (int(y / 10), int(x / 10)))
-        ann['feats']['total_vehicles'].append(dep)##########################################################
+        h, w = dep.shape[:2]
+        dep = mmcv.imresize(dep, (int(w/ 10), int(h/ 10)))
+        ann['frames'][i]['feats']['dep']=dep
+
         # cv2.imwrite("1.png",dep)
         # 障碍物检测
         box_out = inference.inference_detector(

@@ -72,7 +72,7 @@ training_set = ImageSequenceDataset(
     split=args.split,
     transform=transforms.Compose([
         lambda x:mmcv.imresize(x, (1280, 720)),
-        lambda x:torch.tensor(x)]),
+    ]),
     key_frame_only=False)
 enriched_annotations = [] #输出数据集
 depth = Depthdetect()
@@ -102,7 +102,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
         ann['frames'][i]['feats']['dep'] = dep
         # 障碍物检测
         box_out = inference.inference_detector(
-            obs_detectors[id2obs_det[ann['id']]], img[..., ::-1]) # RGB -> BGR
+            obs_detectors[id2obs_det[ann['id']]], img)
         box_result = np.vstack(box_out)
         preserve = box_result[:, -1] >= 0.5
         box_result = box_result[preserve]
@@ -111,7 +111,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
 
         ##车辆检测
         box_out, seg_out = inference.inference_detector(
-            detector, img[..., ::-1]) # RGB -> BGR
+            detector, img)
         vehicle_labels = [
             'car', 'motorcycle', 'bus', 'truck', 'bicycle', ]
         vehicle_ids = [
@@ -143,7 +143,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
             vehicle_mask.astype('uint8'), (128, 72))
 
         ##路线检测
-        result = inference_model(model, img)
+        result = inference_model(model, img[...,::-1]) # BGR -> RGB
 
         ##绘制
         lines = [line[line[:, 0] > 0]
@@ -153,9 +153,9 @@ for idx in tqdm.tqdm(range(len(training_set))):
         main_lane = [point_in_polygon([w / 2, h], _) for _ in lanes].index(True)
         ann['frames'][i]['feats']['main_lane'] = lanes[main_lane].flatten()
         if debug:
-            img_to_show = img.copy()[..., ::-1]
+            img_to_show = img.copy()
             img_to_show = detector.show_result(img_to_show,
-                (box_out, seg_out), score_thr=0.5)[..., ::-1]
+                (box_out, seg_out), score_thr=0.5)[..., ::-1] #BGR -> RGB
             img_to_show = show_result(img_to_show, result)
             img_to_show = show_lanes(img_to_show, lanes, main_lane)
             img_to_show.save(os.path.join(debug_dir,

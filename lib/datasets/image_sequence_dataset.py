@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import mmcv
 from torch.utils.data import Dataset
-from torchvision.transforms import Compose, Normalize, Resize, ToTensor
+from torchvision.transforms import Compose
 
 
 class ImageSequenceDataset(Dataset):
@@ -26,16 +26,16 @@ class ImageSequenceDataset(Dataset):
         self.img_root = img_root if img_root else self.img_root % split
         self.ann_file = ann_file if ann_file else self.ann_file % split
         self._load_anns()
-        self.img_norm = dict(mean=[123.675, 116.28, 103.53],
-                             std=[58.395, 57.12, 57.375])
+        self.img_norm = dict(mean=np.array([123.675, 116.28, 103.53]),
+                             std=np.array([58.395, 57.12, 57.375]))
         if transform:
             self.transform = transform
         else:
             input_size = kwargs.get('input_size', (1280, 720))
             self.transform = Compose([
                 lambda x: mmcv.imresize(x, input_size),
-                ToTensor(),
-                Normalize(**self.img_norm)
+                lambda x: mmcv.imnormalize(x, **self.img_norm, to_rgb=True),
+                lambda x: torch.from_numpy(x.transpose(2, 0, 1)),
             ])
         self.seq_max_len = kwargs.get('seq_max_len', 5)
         self.key_frame_only = kwargs.get('key_frame_only', False)
@@ -105,13 +105,10 @@ class ImageSequenceDataset(Dataset):
     def __getitem__(self, idx):
         ann = self.anns[idx]
         if self.key_frame_only:
-            img = Image.open(os.path.join(self.img_root,
-                    ann['id'], ann['key_frame']))
-            img = np.array(img)
+            img = mmcv.imread(os.path.join(self.img_root,
+                    ann['id'], ann['key_frame'])) # bgr mode
             if self.transform:
                 img = self.transform(img)
-            else:
-                img = torch.tensor(img)
             key_idx = [_['frame_name'] for _ in ann['frames']].index(
                 ann['key_frame'])
             feats = dict()
@@ -139,20 +136,17 @@ class ImageSequenceDataset(Dataset):
                     f'{frame["frame_name"]} is not {i+1}th frame'
                 if frame['frame_name'] == ann['key_frame']:
                     ann['key'] = i
-                img = Image.open(os.path.join(self.img_root, 
+                img = mmcv.imread(os.path.join(self.img_root, 
                     ann['id'], frame['frame_name']))
-                img = np.array(img)
                 feats['feat_mask'].append(
                     self.gen_feat_mask(frame.get('feats'), *img.shape[:2],
                                        keys=['vehicles', 'obstacles']))
             else:
                 img = np.zeros(imgs[0].shape[-2:] + (3,))
-                img = img + self.img_norm['mean']
+                img = img + self.img_norm['mean'][::-1] # rgb to bgr
                 img = img.astype('uint8')
             if self.transform:
                 img = self.transform(img)
-            else:
-                img = torch.tensor(img)
             imgs.append(img)
         imgs = torch.stack(imgs, -1)
         seq_feats = self.gen_feat_vector(ann.get('feats'),

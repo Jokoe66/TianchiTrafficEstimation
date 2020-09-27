@@ -4,3 +4,6 @@
 [submodule "lib/mmdetection"]
 	path = lib/mmdetection
 	url = https://github.com/Jokoe66/mmdetection-1.git
+[submodule "lib/bts"]
+	path = lib/bts
+	url = git@github.com:jmjjok/bts.git

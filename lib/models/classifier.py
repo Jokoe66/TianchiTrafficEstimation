@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import mmcv
 from mmcv.runner import get_dist_info
-from mmdet.models import build_backbone
+from mmcls.models import build_backbone
 
 class Classifier(torch.nn.Module):
 
@@ -35,12 +35,15 @@ class Classifier(torch.nn.Module):
 
 
     def forward(self, input, seq_len=5, **kwargs):
-        feat = self.backbone(input)[0]
+        feat = self.backbone(input)
+        if isinstance(feat, tuple):
+            feat = feat[0]
         feat = self.pool(feat)
         n, c, h, w = feat.shape
         # feature mask fusion
-        assert (self.feat_mask_dim > 0) ^ ('feat_mask' not in kwargs), \
-            "(feat_mask_dim > 0) must be equal to ('feat_mask' in kwargs)."
+        assert self.feat_mask_dim == 0 or \
+            (self.feat_mask_dim > 0) ^ ('feat_mask' not in kwargs), \
+            "feat_mask should be in kwargs when feat_mask_dim > 0"
         if self.feat_mask_dim:
             # n, h, w, c,( t)
             feat_mask = kwargs['feat_mask'].to(next(self.parameters()))
@@ -56,8 +59,9 @@ class Classifier(torch.nn.Module):
             feat = torch.cat([feat, feat_mask], 1)
         feat = feat.view(n, -1)
         # feature vector fusion
-        assert (self.feat_vec_dim > 0) ^ ('feat_vector' not in kwargs), \
-            "(feat_vec_dim > 0) must be equal to ('feat_vector' in kwargs)."
+        assert self.feat_vec_dim == 0 or \
+            (self.feat_vec_dim > 0) ^ ('feat_vector' not in kwargs), \
+            "feat_vector should be in kwargs when feat_vec_dim > 0"
         if self.feat_vec_dim:
             feat_vector = kwargs['feat_vector'].to(next(self.parameters())) # n, c, t
             if len(feat_vector.shape) == 2: # n, c

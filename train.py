@@ -187,32 +187,20 @@ if __name__ == '__main__':
             sampler=DistributedClassBalancedSubsetSampler(training_set, train_inds))
         val_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
             sampler=DistributedSubsetSampler(val_inds))
-
-        backbone = dict(
-            type='Res2Net',
-            depth=101,
-            scales=4,
-            base_width=26,
-            frozen_stages=4,
-            out_indices=(3,),
-            norm_eval=False)
-        backbone = dict(
+        backbone=dict(
             type='ResNet',
             depth=101,
             num_stages=4,
             out_indices=(3,),
             frozen_stages=4,
-            norm_cfg=dict(type='BN', requires_grad=True),
-            norm_eval=True,
             style='pytorch')
         model = Classifier(
             backbone,
-            #pretrained='open-mmlab://res2net101_v1d_26w_4s',
             pretrained='torchvision://resnet101',
             num_classes=4,
             lstm=lstm,
-            feat_mask_dim=2,
-            feat_vec_dim=10).to(args.local_rank)
+            feat_mask_dim=0,
+            feat_vec_dim=0).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[args.local_rank])
         output = train(model, train_loader,

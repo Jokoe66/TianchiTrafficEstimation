@@ -7,3 +7,6 @@
 [submodule "lib/bts"]
 	path = lib/bts
 	url = https://github.com/jmjjok/bts.git
+[submodule "lib/mmclassification"]
+	path = lib/mmclassification
+	url = https://github.com/open-mmlab/mmclassification.git

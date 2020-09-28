@@ -1,18 +1,18 @@
 # [天池交通状况预测比赛](https://tianchi.aliyun.com/competition/entrance/531809/information)
 
 ### Result
-|       Method        | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | score |
-|       :---:         | :---:| :---:| :---:| :---: |
-|time based baseline  | 0.905|0.034 | 0.713| 0.616 |
-|+vehicle+lane        | 0.930|0.136 | 0.770| 0.675 |
-|+class balance       | 0.921|0.305 | 0.777|**0.712**|
+|     Method        | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>2</sub> | score |
+|             :---:               | :---:| :---:| :---:| :---: | :--:  |
+|  hand-crafted features + LGBM   | 0.86 | 0.19 |  0.65| 0.97  | 0.706 |
+|  DCNN features + Resnet101      | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |
+|  hand-crafted features + DCNN features + Resnet101      | 0.90 | 0.10 | 0.74 | 0.98  | 0.723 |
 
 ### Taks1: Scene Recognition
 Directly classify scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.
 
 |    Backbone    | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
 |     :---:                | :---:| :---:| :---:| :---: | :--:  |
-|   Resnet50               | 0.00 | 0    |  0   | 0.67  | 0.268 |
+|  Resnet50                | 0.00 | 0    |  0   | 0.67  | 0.268 |
 |  Resnet50 + re-weighting | 0.00 | 0    |  0   | 0.67  | 0.268 |
 |  Resnet50 + oversampling | 0.44 | 0.26 | 0.42 | 0.65  | 0.483 |
 |  Resnet101 + oversampling| 0.44 | 0.46 | 0.57 | 0.76  | 0.610 |
@@ -20,9 +20,19 @@ Directly classify scene images into several traffic status (unimpeded, congested
 
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
 |     :---:                | :---:| :---:| :---:| :---: | :--:  |
-|  Baseline                | 0.74 | 0.14 | 0.45 | 0.93  | 0.610 |
-|  Baseline + feat_mask    | 0.80 | 0.16 | 0.50 | 0.97  | 0.650 |
-|  Baseline + feat_mask + feat_vector | 0.83 | 0.17 | 0.53 | 0.98  | 0.669 |
+|  \*\*Resnet101     | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |
+|  \*\*Resnet101 + feat_mask    | 0.90 | 0.10 | 0.65 | 0.98  | 0.700 |
+|  \*\*Resnet101 + feat_vector  | 0.89 | 0.16 | 0.66 | 0.98  | 0.710 |
+|  \*Resnet101 + feat_mask + feat_vector | 0.90 | 0.10 | 0.74 | 0.98  | 0.723 |
+|  \*ResNeSt101 + feat_mask + feat_vector | 0.90 | 0.06 | 0.66 | 0.97  | 0.689 |
+
+Note:
+* All methods use oversampling and GRU.
+* \* denotes results after fixing preprocessing error.
+* All methods are trained and evaluated in the first fold, and trained for 2 epochs 
+    to save time.
+* \*\* denotes average results over 5 folds.
+
 #### Usage
 ```shell
 CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node 1 train.py \

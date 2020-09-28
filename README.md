@@ -55,6 +55,7 @@ python e2e_demo.py --img_root /tcdata/amap_traffic_final_test_data \
     --ann_file  /path/to/amap_traffic_final_test_0906.json/or/enriched/one \
     --test_file /tcdata/amap_traffic_final_test_0906.json \
     --device cuda:0 --model_path /path/to/saved/model
+```
 
 ### Task2: Visual Odometry
 

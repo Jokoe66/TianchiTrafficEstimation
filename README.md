@@ -5,7 +5,7 @@
 |             :---:               | :---:| :---:| :---:| :---: | :--:  |
 |  hand-crafted features + LGBM   | 0.86 | 0.19 |  0.65| 0.97  | 0.706 |
 |  DCNN features + Resnet101      | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |
-|  hand-crafted features + DCNN features + Resnet101      | 0.90 | 0.10 | 0.74 | 0.98  | 0.723 |
+|  hand-crafted features + DCNN features + Resnet101      | 0.90 | 0.18 | 0.66 | 0.98  | 0.716 |
 
 ### Taks1: Scene Recognition
 Directly classify scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.
@@ -18,19 +18,23 @@ Directly classify scene images into several traffic status (unimpeded, congested
 |  Resnet101 + oversampling| 0.44 | 0.46 | 0.57 | 0.76  | 0.610 |
 |  Resnet101 + oversampling + GRU| 0.60 | 0.48 | 0.52 | 0.91  | 0.676 |
 
+Note:
+* All above results are obtained before fixing preprocessing error.
+
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
 |     :---:                | :---:| :---:| :---:| :---: | :--:  |
-|  \*\*Resnet101     | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |
-|  \*\*Resnet101 + feat_mask    | 0.89 | 0.16 | 0.64 | 0.98  | 0.703 |
-|  \*\*Resnet101 + feat_vector  | 0.89 | 0.16 | 0.66 | 0.98  | 0.710 |
-|  \*Resnet101 + feat_mask + feat_vector | 0.90 | 0.10 | 0.74 | 0.98  | 0.723 |
+|  Resnet101     | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |
+|  Resnet101 + feat_mask    | 0.89 | 0.16 | 0.64 | 0.98  | 0.703 |
+|  Resnet101 + feat_vector  | 0.89 | 0.16 | 0.66 | 0.98  | 0.710 |
+|  Resnet101 + feat_mask + feat_vector | 0.90 | 0.18 | 0.66 | 0.98  | 0.716 |
+|  Resnet50 + feat_mask + feat_vector  | 0.89 | 0.14 | 0.66 | 0.98  | 0.708 |
 |  \*ResNeSt101 + feat_mask + feat_vector | 0.90 | 0.06 | 0.66 | 0.97  | 0.689 |
 
 Note:
 * All methods use oversampling and GRU.
-* \* denotes results after fixing preprocessing error.
-* All methods are trained and evaluated in the first fold, and trained for 2 epochs 
-    to save time, except those denoted by \*\* that are average results over 5 folds.
+* All methods are trained for 4 epochs with initial lr 1e-3. lr decays by a factor of 0.1
+  after epoch 2 and 3, respectively. (See Usage)
+* \* denotes models trained and evaluated in the first fold, and trained for 2 epochs.
 
 #### Usage
 在运行之前需要把mmclassification安装到环境中:

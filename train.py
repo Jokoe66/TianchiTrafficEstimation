@@ -199,8 +199,8 @@ if __name__ == '__main__':
             pretrained='torchvision://resnet101',
             num_classes=4,
             lstm=lstm,
-            feat_mask_dim=0,
-            feat_vec_dim=0).to(args.local_rank)
+            feat_mask_dim=2,
+            feat_vec_dim=10).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[args.local_rank])
         output = train(model, train_loader,

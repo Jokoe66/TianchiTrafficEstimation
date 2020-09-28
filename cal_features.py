@@ -8,7 +8,6 @@ sys.path.insert(0, 'lib/mmdetection')
 
 from PIL import Image
 import tqdm
-from PIL import Image
 import mmcv
 import torch
 import torchvision.transforms as transforms

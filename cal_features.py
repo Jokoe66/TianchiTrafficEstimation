@@ -68,7 +68,7 @@ training_set = ImageSequenceDataset(
         lambda x:torch.tensor(x)]),
     key_frame_only=False)
 enriched_annotations = [] #输出数据集
-depth = Depthdetect()########
+depth = Depthdetect()
 for idx in tqdm.tqdm(range(len(training_set))):
     data = training_set[idx]
     ann = training_set.anns[idx]  # id_dis_status_variance中的一项

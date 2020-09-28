@@ -21,7 +21,7 @@ Directly classify scene images into several traffic status (unimpeded, congested
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
 |     :---:                | :---:| :---:| :---:| :---: | :--:  |
 |  \*\*Resnet101     | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |
-|  \*\*Resnet101 + feat_mask    | 0.90 | 0.10 | 0.65 | 0.98  | 0.700 |
+|  \*\*Resnet101 + feat_mask    | 0.89 | 0.16 | 0.64 | 0.98  | 0.703 |
 |  \*\*Resnet101 + feat_vector  | 0.89 | 0.16 | 0.66 | 0.98  | 0.710 |
 |  \*Resnet101 + feat_mask + feat_vector | 0.90 | 0.10 | 0.74 | 0.98  | 0.723 |
 |  \*ResNeSt101 + feat_mask + feat_vector | 0.90 | 0.06 | 0.66 | 0.97  | 0.689 |
@@ -30,8 +30,7 @@ Note:
 * All methods use oversampling and GRU.
 * \* denotes results after fixing preprocessing error.
 * All methods are trained and evaluated in the first fold, and trained for 2 epochs 
-    to save time.
-* \*\* denotes average results over 5 folds.
+    to save time, except those denoted by \*\* that are average results over 5 folds.
 
 #### Usage
 ```shell

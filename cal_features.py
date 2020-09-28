@@ -65,6 +65,8 @@ config = Config.fromfile(config_file)
 config.test_model = 'lib/lanedet/checkpoints/culane_18.pth'  # /path/to/model_weight
 config.test_model = '../user_data/culane_18.pth'
 model = init_model(config, args.device)
+# 深度估计初始化
+depth = Depthdetect(checkpoint_path='../user_data/bts.pth')
 # 训练集初始化
 training_set = ImageSequenceDataset(
     img_root=args.img_root,
@@ -75,7 +77,6 @@ training_set = ImageSequenceDataset(
     ]),
     key_frame_only=False)
 enriched_annotations = [] #输出数据集
-depth = Depthdetect()
 for idx in tqdm.tqdm(range(len(training_set))):
     data = training_set[idx]
     ann = training_set.anns[idx]
@@ -95,8 +96,8 @@ for idx in tqdm.tqdm(range(len(training_set))):
         ann['frames'][i]['feats'] = dict()
         img = img_seq[i]
         h, w = img.shape[:2]
-        #深度估计：
-        dep = depth.estimate(img)
+        #深度估计
+        dep = depth.estimate(img[...,::-1]) # BGR -> RGB
         h, w = dep.shape[:2]
         dep = mmcv.imresize(dep, (int(w/ 10), int(h/ 10)))
         ann['frames'][i]['feats']['dep'] = dep

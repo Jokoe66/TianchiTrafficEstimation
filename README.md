@@ -27,7 +27,10 @@ Note:
 |  Resnet101 + feat_mask    | 0.89 | 0.16 | 0.64 | 0.98  | 0.703 |
 |  Resnet101 + feat_vector  | 0.89 | 0.16 | 0.66 | 0.98  | 0.710 |
 |  Resnet101 + feat_mask + feat_vector | 0.90 | 0.18 | 0.66 | 0.98  | 0.716 |
+|  Resnet101 + FT3 + feat_mask + feat_vector | 0.91 | 0.12 | 0.70 | 0.98  | 0.716 |
 |  Resnet50 + feat_mask + feat_vector  | 0.89 | 0.14 | 0.66 | 0.98  | 0.708 |
+|  Resnet50 + FT2 | 0.91 | 0.09 | 0.70 | 0.99  | 0.715 |
+|  \*Resnet50 + FT2 + bilinear pooling | 0.85 | 0.19 | 0.57 | 0.97  | 0.679 |
 |  \*ResNeSt101 + feat_mask + feat_vector | 0.90 | 0.06 | 0.66 | 0.97  | 0.689 |
 
 Note:
@@ -35,6 +38,8 @@ Note:
 * All methods are trained for 4 epochs with initial lr 1e-3. lr decays by a factor of 0.1
   after epoch 2 and 3, respectively. (See Usage)
 * \* denotes models trained and evaluated in the first fold, and trained for 2 epochs.
+* FT denotes fine-tuning. By default, the bakbones are fixed during training. FTn denotes
+  layers after n-th layer are fine-tuned during training.
 
 #### Usage
 在运行之前需要把mmclassification安装到环境中:

@@ -5,7 +5,7 @@ python cal_features.py --img_root /tcdata/amap_traffic_final_test_data \
 python e2e_demo.py --img_root /tcdata/amap_traffic_final_test_data \
     --ann_file ../user_data/enriched_annotations_test_final.pkl \
     --test_file /tcdata/amap_traffic_final_test_0906.json \
-    --model_path ../user_data/classifier_epoch1.pth \
-    --device cuda:0
+    --model_path ../user_data/res101/fold\*_best.pth \
+    --device cuda:0 --ensemble 5
 
 #python demo.py

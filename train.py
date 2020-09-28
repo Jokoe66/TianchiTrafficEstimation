@@ -194,15 +194,22 @@ if __name__ == '__main__':
             out_indices=(3,),
             frozen_stages=4,
             style='pytorch')
-        model = Classifier(
-            backbone,
+        params= dict(
+            backbone=backbone,
             pretrained='torchvision://resnet101',
+            bb_style='mmcls', # build backbone with mmcls or mmdet
+            bb_feat_dim=256,
             num_classes=4,
             lstm=lstm,
+            bilinear_pooling=False,
             feat_mask_dim=2,
-            feat_vec_dim=10).to(args.local_rank)
+            feat_vec_dim=10,
+            )
+        if args.local_rank == 0:
+            print(params)
+        model = Classifier(**params).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
-                model, device_ids=[args.local_rank])
+            model, device_ids=[args.local_rank])
         output = train(model, train_loader,
             val_dataloader=val_loader,
             log_iters=10,

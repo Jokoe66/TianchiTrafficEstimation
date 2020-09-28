@@ -2,7 +2,12 @@ import torch
 import torch.nn.functional as F
 import mmcv
 from mmcv.runner import get_dist_info
-from mmcls.models import build_backbone
+from mmcls.models import build_backbone as build_backbone_mmcls
+from mmdet.models import build_backbone as build_backbone_mmdet
+
+_BACKBONE_BUILDER = {
+    'mmdet': build_backbone_mmdet,
+    'mmcls': build_backbone_mmcls}
 
 class Classifier(torch.nn.Module):
 
@@ -10,25 +15,32 @@ class Classifier(torch.nn.Module):
         super(Classifier, self).__init__()
         self.num_classes = num_classes
 
-        self.backbone = build_backbone(backbone)
+        bb_style = kwargs.get('bb_style', 'mmcls')
+        self.backbone = _BACKBONE_BUILDER[bb_style](backbone)
         self.backbone.init_weights(pretrained)
 
         h, w, c = 9, 16, 256 # make feat_size indpendent on input_size
         self.pool = torch.nn.Sequential(
             torch.nn.AdaptiveAvgPool2d((h, w)),
-            torch.nn.Conv2d(2048, c, 1, 1, 0),
+            torch.nn.Conv2d(kwargs.get('bb_feat_dim', 2048), c, 1, 1, 0),
             torch.nn.ReLU(inplace=True)
         )
         self.feat_mask_dim = kwargs.get('feat_mask_dim', 0)
         c += self.feat_mask_dim
 
-        hidden_size = kwargs.get('lstm')
+        use_bilinear_pooling = kwargs.get('bilinear_pooling', False)
+        self.use_bilinear_pooling = use_bilinear_pooling
+        bilinear_dim = c * c
+
         self.feat_vec_dim = kwargs.get('feat_vec_dim', 0)
-        in_channels = h * w * c + self.feat_vec_dim
+
+        in_channels = h * w * c + self.feat_vec_dim \
+            if not use_bilinear_pooling  else bilinear_dim + self.feat_vec_dim
+        hidden_size = kwargs.get('lstm')
         self.lstm = torch.nn.GRU(
             in_channels, hidden_size) if hidden_size else None
-        hidden_size = hidden_size or in_channels
 
+        hidden_size = hidden_size or in_channels
         self.fc = torch.nn.Sequential(
             torch.nn.Dropout(0.00),
             torch.nn.Linear(hidden_size, num_classes))
@@ -36,8 +48,8 @@ class Classifier(torch.nn.Module):
 
     def forward(self, input, seq_len=5, **kwargs):
         feat = self.backbone(input)
-        if isinstance(feat, tuple):
-            feat = feat[0]
+        if isinstance(feat, (tuple, list)):
+            feat = feat[-1]
         feat = self.pool(feat)
         n, c, h, w = feat.shape
         # feature mask fusion
@@ -57,6 +69,14 @@ class Classifier(torch.nn.Module):
             feat_mask = feat_mask.view(-1, *feat_mask.shape[2:])
             feat_mask = F.interpolate(feat_mask, (h, w), mode='nearest')
             feat = torch.cat([feat, feat_mask], 1)
+
+        # bilinear pooling models interactions between features
+        if self.use_bilinear_pooling:
+            n, c, h, w = feat.shape
+            feat = feat.view(n, c, h * w)
+            feat = torch.bmm(feat, feat.transpose(1, 2)).view(n, -1) / (h * w)
+            feat = F.normalize(torch.sqrt(feat + 1e-10))
+
         feat = feat.view(n, -1)
         # feature vector fusion
         assert self.feat_vec_dim == 0 or \

@@ -33,11 +33,16 @@ Note:
     to save time, except those denoted by \*\* that are average results over 5 folds.
 
 #### Usage
+在运行之前需要把mmclassification安装到环境中:
+```shell
+cd lib/mmclassification
+pip install -e .
+```
 ```shell
 CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node 1 train.py \
     --img_root /path/to/amap_traffic_final_train_data \
-    --ann_file  /path/to/amap_traffic_final_train_0906.json \
-    --lr 0.001 --max_epoch 10 --milestones 8  --samples_per_gpu 8
+    --ann_file  /path/to/amap_traffic_final_train_0906.json/or/enriched/one \
+    --lr 0.001 --max_epoch 4 --milestones 2 3  --samples_per_gpu 8
 ```
 ```shell
 python -u test.py \
@@ -45,6 +50,11 @@ python -u test.py \
     --ann_file  ../data/amap_traffic_final_train_0906.json \
     --device cuda:0 --model_path /path/to/saved/model
 ```
+```shell
+python e2e_demo.py --img_root /tcdata/amap_traffic_final_test_data \
+    --ann_file  /path/to/amap_traffic_final_test_0906.json/or/enriched/one \
+    --test_file /tcdata/amap_traffic_final_test_0906.json \
+    --device cuda:0 --model_path /path/to/saved/model
 
 ### Task2: Visual Odometry
 

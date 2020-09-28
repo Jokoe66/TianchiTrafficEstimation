@@ -6,24 +6,28 @@ import os
 import sys
 sys.path.insert(0, 'lib/mmdetection')
 
-import tqdm
 from PIL import Image
+import tqdm
 import mmcv
 import torch
 import torchvision.transforms as transforms
 import numpy as np
 from mmdet.apis import inference
 
-from lib import ImageSequenceDataset
+from lib.datasets import ImageSequenceDataset
 from lib.lanedet.utils.config import Config
 from lib.lanedet.inference import init_model, inference_model, show_result
 from lib.utils.visualize import show_lanes
 from lib.utils.geometry import split_rectangle, point_in_polygon
+from lib.bts.depthdetect import Depthdetect
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--img_root', type=str, default='')
-parser.add_argument('--ann_file', type=str, default='')
-parser.add_argument('--split', type=str, default='train', help='train or test')
+parser.add_argument('--img_root', type=str, 
+		    default='data/amap_traffic_final_train_data')
+parser.add_argument('--ann_file', type=str, 
+		    default='data/amap_traffic_final_train_0906.json')
+parser.add_argument('--split', type=str, 
+		    default='train', help='train or test')
 parser.add_argument('--device', type=str, default='cuda:0', help='device')
 parser.add_argument('--debug', action="store_true", default=False,
                     help='whether save visualized images')
@@ -37,12 +41,12 @@ debug_dir = args.debug_dir
 if debug:
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
-## 车辆检测初始化
+# 车辆检测初始化
 config = 'configs/cascade_rcnn/cascade_mask_rcnn_r50_fpn_20e_coco.py'
 checkpoint = '../user_data/cascade_mask_rcnn_r50_fpn_20e_coco.pth'
 detector = inference.init_detector(
     config, checkpoint=checkpoint, device=args.device)
-## 障碍物检测初始化
+# 障碍物检测初始化
 config = 'configs/barrier/cascade_rcnn_r2_101_fpn_barrier.py'
 checkpoint = '../user_data/cascade_rcnn_r2_101_fpn_46e_barrier.pth'
 obs_detector = inference.init_detector(
@@ -63,7 +67,7 @@ training_set = ImageSequenceDataset(
         lambda x:torch.tensor(x)]),
     key_frame_only=False)
 enriched_annotations = [] #输出数据集
-
+depth = Depthdetect()
 for idx in tqdm.tqdm(range(len(training_set))):
     data = training_set[idx]
     ann = training_set.anns[idx]  # id_dis_status_variance中的一项
@@ -82,6 +86,11 @@ for idx in tqdm.tqdm(range(len(training_set))):
         ann['frames'][i]['feats'] = dict()
         img = img_seq[i]
         h, w = img.shape[:2]
+        #深度估计：
+        dep = depth.estimate(img)
+        h, w = dep.shape[:2]
+        dep = mmcv.imresize(dep, (int(w/ 10), int(h/ 10)))
+        ann['frames'][i]['feats']['dep'] = dep
         # 障碍物检测
         box_out = inference.inference_detector(
             obs_detector, img[..., ::-1]) # RGB -> BGR

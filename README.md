@@ -1,7 +1,7 @@
 # [天池交通状况预测比赛](https://tianchi.aliyun.com/competition/entrance/531809/information)
 
 ### Result
-|     Method        | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>2</sub> | score |
+|     Method        | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub> | score |
 |             :---:               | :---:| :---:| :---:| :---: | :--:  |
 |  hand-crafted features + LGBM   | 0.86 | 0.19 |  0.65| 0.97  | 0.706 |
 |  DCNN features + Resnet101      | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |

@@ -198,7 +198,7 @@ if __name__ == '__main__':
             backbone=backbone,
             pretrained='torchvision://resnet101',
             bb_style='mmcls', # build backbone with mmcls or mmdet
-            bb_feat_dim=256,
+            bb_feat_dim=2048,
             num_classes=4,
             lstm=lstm,
             bilinear_pooling=False,

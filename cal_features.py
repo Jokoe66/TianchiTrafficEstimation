@@ -74,6 +74,7 @@ training_set = ImageSequenceDataset(
     split=args.split,
     transform=transforms.Compose([
         lambda x:mmcv.imresize(x, (1280, 720)),
+        lambda x:torch.tensor(x),
     ]),
     key_frame_only=False)
 enriched_annotations = [] #输出数据集
@@ -91,6 +92,9 @@ for idx in tqdm.tqdm(range(len(training_set))):
                         lane_length=[],
                         lane_width=[],
                         num_obstacles=[],
+                        closest_vehicle_depth=[],
+                        vehicle_depth_mean=[],
+                        vehicle_depth_std=[],
                         )
     for i in range(data['len_seq']):
         ann['frames'][i]['feats'] = dict()
@@ -98,9 +102,10 @@ for idx in tqdm.tqdm(range(len(training_set))):
         h, w = img.shape[:2]
         #深度估计
         dep = depth.estimate(img[...,::-1]) # BGR -> RGB
-        h, w = dep.shape[:2]
-        dep = mmcv.imresize(dep, (int(w/ 10), int(h/ 10)))
-        ann['frames'][i]['feats']['dep'] = dep
+        dep = mmcv.imresize(dep, (w, h))
+        dep = dep.astype(np.float32) / dep.max() # normalize
+        ann['frames'][i]['feats']['dep'] = mmcv.imresize(
+            dep, (int(w / 10), int(h / 10)))
         # 障碍物检测
         box_out = inference.inference_detector(
             obs_detectors[id2obs_det[ann['id']]], img)
@@ -128,9 +133,9 @@ for idx in tqdm.tqdm(range(len(training_set))):
         assert seg_result.shape[1:] == (h, w)
         assert len(box_result) == len(seg_result)
 
-        # preserve high confident ones
+        # preserve high confidence ones
         preserve = box_result[:, -1] >= 0.5
-        # preserve those above the bottom boundary (0.9 * h)
+        # preserve those above the bottom boundary (0.95 * h)
         # this condition filters out the poetential detection of the car that
         # the camera is mounted on.
         preserve &= (box_result[:, 3] < 0.95 * h)
@@ -177,6 +182,23 @@ for idx in tqdm.tqdm(range(len(training_set))):
             (bottom_centers - np.array([w / 2, h])) ** 2).sum(1) / h
         ann['feats']['vehicle_distances_mean'].append(vehicle_distances.mean())
         ann['feats']['vehicle_distances_std'].append(vehicle_distances.std())
+
+        # (n, 4) -> (n, 2, 2) [[xmin, xmax], [ymin, ymax]]
+        centers = (vehicles[:, :4].reshape(len(vehicles), 2, 2)
+                          .transpose(0, 2, 1).mean(2).astype(int))
+        # do not append a pseudo center since it may greatly
+        # influence the mean dpeth
+        neighbor = np.meshgrid(np.arange(3) - 1, np.arange(3) - 1)
+        # depths of shape (n, 9), denote 9 depth values of each of n vehicles
+        vehicle_depths = dep[centers[:, 1:2] + neighbor[1].flatten(),
+                             centers[:, 0:1] + neighbor[0].flatten()]
+        vehicle_depths = vehicle_depths.mean(1) # mean depth of each vehicle
+        if len(vehicle_depths):
+            ann['feats']['vehicle_depth_mean'].append(vehicle_depths.mean())
+            ann['feats']['vehicle_depth_std'].append(vehicle_depths.std())
+        else:
+            ann['feats']['vehicle_depth_mean'].append(1)
+            ann['feats']['vehicle_depth_std'].append(0)
         
         inside_main_lane = np.array(
             [point_in_polygon(bc, lanes[main_lane]) for bc in bottom_centers])
@@ -192,6 +214,8 @@ for idx in tqdm.tqdm(range(len(training_set))):
 
         ann['feats']['closest_vehicle_distance'].append(
             (h - closest_main_lane_bottom_centers[0, 1]) / (h - pseudo_bc[1]))
+        ann['feats']['closest_vehicle_depth'].append(
+            np.hstack([vehicle_depths[inside_main_lane[:-1]], 1]).min())
         ann['feats']['lane_length'].append((h - pseudo_bc[1]) / h)
         ann['feats']['lane_width'].append(
             (lanes[main_lane][:, 0].max() - lanes[main_lane][:, 0].min()) / w)

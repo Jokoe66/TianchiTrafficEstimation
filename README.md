@@ -1,11 +1,11 @@
 # [天池交通状况预测比赛](https://tianchi.aliyun.com/competition/entrance/531809/information)
 
 ### Result
-|     Method        | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub> | score |
-|             :---:               | :---:| :---:| :---:| :---: | :--:  |
-|  hand-crafted features + LGBM   | 0.86 | 0.19 |  0.65| 0.97  | 0.706 |
-|  DCNN features + Resnet101      | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |
-|  hand-crafted features + DCNN features + Resnet101      | 0.90 | 0.18 | 0.66 | 0.98  | 0.716 |
+|  Method  | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub> |F1<sub>val</sub> | F1<sub>test</sub> |
+|            :---:               | :---:| :---:| :---:| :---: | :--:  | :--:  |
+| hand-crafted features + LGBM   | 0.86 | 0.19 |  0.65| 0.97  | 0.706 | 0.6307|
+| DCNN features + Resnet101      | 0.88 | 0.21 | 0.65 | 0.98  | 0.714 |       |
+| hand-crafted features + DCNN features + Resnet101| 0.90 | 0.18 | 0.66 | 0.98  | 0.716 | 0.6170|
 
 ### Taks1: Scene Recognition
 Directly classify scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.
@@ -27,6 +27,7 @@ Note:
 |  Resnet101 + feat_mask    | 0.89 | 0.16 | 0.64 | 0.98  | 0.703 |
 |  Resnet101 + feat_vector  | 0.89 | 0.16 | 0.66 | 0.98  | 0.710 |
 |  Resnet101 + feat_mask + feat_vector | 0.90 | 0.18 | 0.66 | 0.98  | 0.716 |
+|  Resnet101 + feat_mask + feat_vector + fc-DP50 | 0.90 | 0.18 | 0.65 | 0.98  | 0.707 |
 |  Resnet101 + FT3 + feat_mask + feat_vector | 0.91 | 0.12 | 0.70 | 0.98  | 0.716 |
 |  Resnet50 + feat_mask + feat_vector  | 0.89 | 0.14 | 0.66 | 0.98  | 0.708 |
 |  Resnet50 + FT2 | 0.91 | 0.09 | 0.70 | 0.99  | 0.715 |
@@ -40,6 +41,7 @@ Note:
 * \* denotes models trained and evaluated in the first fold, and trained for 2 epochs.
 * FT denotes fine-tuning. By default, the bakbones are fixed during training. FTn denotes
   layers after n-th layer are fine-tuned during training.
+* DP denotes dropout.
 
 #### Usage
 在运行之前需要把mmclassification安装到环境中:

@@ -141,7 +141,7 @@ if __name__ == '__main__':
     data_root = '../data'
     user_data_root = '../user_data'
     train_json = pd.DataFrame(pd.read_pickle(os.path.join(
-        user_data_root, "enriched_annotations_train_final_cv.pkl")))
+        user_data_root, "enriched_annotations_train_final.pkl")))
     test_json = train_json
     # uncomment before submitting
     test_json = pd.DataFrame(pd.read_pickle(os.path.join(
@@ -191,6 +191,16 @@ if __name__ == '__main__':
                      "num_obstacles_mean",
                      "num_obstacles_std",
                      "num_obstacles_key",
+                     "vehicle_depth_mean_mean",
+                     "vehicle_depth_mean_std",
+                     "vehicle_depth_mean_key",
+                     "vehicle_depth_std_mean",
+                     "vehicle_depth_std_std",
+                     "vehicle_depth_std_key",
+                     "closest_vehicle_depth_mean",
+                     "closest_vehicle_depth_std",
+                     "closest_vehicle_depth_key",
+                     "closest_vehicle_depth_gap",
                     ]
 
     train_x = train_df[select_features].copy()

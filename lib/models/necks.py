@@ -154,16 +154,7 @@ class PFFSeqNeck(nn.Module):
             #in_channel, pool_h, pool_w, pool_c)
         self.pooling = Pool(**pooling)
         self.ff = FF(**feature_fusion)
-        lstm_in_channel = self.get_lstm_input_size()
-        self.lstm = Seq(lstm_in_channel, **lstm)
-
-    def get_lstm_input_size(self):
-        h, w = self.pooling.pool[0].output_size
-        c = self.pooling.pool[1].bias.shape[0]
-        lstm_in_channel = (
-            h * w * (c + self.ff.feat_mask_dim) + self.ff.feat_vec_dim
-            )
-        return lstm_in_channel
+        self.lstm = Seq(**lstm)
 
     def forward(self, feat, **kwargs):
         # pooling
@@ -193,12 +184,6 @@ class PFFBPSeqNeck(PFFSeqNeck):
     def __init__(self, *args, **kwargs):
         super(PFFBPSeqNeck, self).__init__(*args, **kwargs)
         self.bp = BilinearPooling()
-
-    def get_lstm_input_size(self):
-        h, w = self.pooling.pool[0].output_size
-        c = self.pooling.pool[1].bias.shape[0]
-        lstm_in_channel = (c + self.ff.feat_mask_dim) ** 2
-        return lstm_in_channel
 
     def forward(self, feat, **kwargs):
         # pooling

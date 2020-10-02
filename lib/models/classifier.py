@@ -40,5 +40,5 @@ class Classifier(torch.nn.Module):
 
     def forward(self, input, **kwargs):
         feat = self.extract_feat(input, **kwargs)
-        logit = self.head(feat)
+        logit = self.head(feat, **kwargs)
         return logit 

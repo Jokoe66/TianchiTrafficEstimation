@@ -1,13 +1,16 @@
 import torch
 import torch.nn as nn
+from mmcls.models.builder import LOSSES
+from mmcls.models import build_loss
 
+@LOSSES.register_module()
 class BBNLoss(nn.Module):
 
-    def __init__(self, criterian, max_steps, **kwargs):
-        super(BNNLoss, self).__init__()
+    def __init__(self, max_steps, criterian, **kwargs):
+        super(BBNLoss, self).__init__()
         self.step = 0
         self.max_steps = max_steps
-        self.criterian = criterian
+        self.criterian = build_loss(criterian)
 
     def get_alpha(self):
         # parabolic-decay
@@ -22,7 +25,7 @@ class BBNLoss(nn.Module):
 
     def forward(self, preds, labels1, labels2):
         alpha = self.get_alpha()
-        self.update_step()
         loss = (alpha * self.criterian(preds, labels1)
                 + (1 - alpha) * self.criterian(preds, labels2))
+        self.update_step()
         return loss

@@ -7,16 +7,19 @@ sys.path.insert(0, 'lib/mmdetection')
 import pandas as pd
 import numpy as np
 import mmcv
+from mmcv.utils import Config
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from sklearn.model_selection import KFold
 from sklearn.metrics import f1_score
+from mmcls.models import build_classifier
 
 from lib.datasets import (ImageSequenceDataset, ClassBalancedSubsetSampler,
                           DistributedClassBalancedSubsetSampler,
-                          DistributedSubsetSampler)
-from lib.models import Classifier
+                          DistributedSubsetSampler, CombinedSampler,
+                          DistributedReversedSubsetSampler)
+from lib.models import Classifier, BBNLoss
 from lib.utils.dist_utils import collect_results_cpu
 
 
@@ -36,14 +39,14 @@ def eval(model, dataloader, **kwargs):
                 .view(-1, *imgs.shape[1:4]))
         else:
             seq_len = 1
-        data.pop('seq_len')
+        data['seq_len'] = seq_len
         labels = data['label']
 
         imgs = imgs.to(next(self.parameters()).device)
         labels = labels.to(next(self.parameters()).device)
 
         with torch.no_grad():
-            preds = self(imgs, seq_len, **data)
+            preds = self(imgs, **data)
 
         all_labels = np.hstack([all_labels, labels.cpu().numpy()])
         all_preds = np.hstack([all_preds,
@@ -80,9 +83,11 @@ def train(self, dataloader, **kwargs):
     # re-weighting for balancing class distribution
     #class_weights = torch.tensor(
     #    [0.1, 0.2, 0.3, 0.4], device=next(self.parameters().device)
-    criteria = torch.nn.CrossEntropyLoss()
-
+    #criteria = torch.nn.CrossEntropyLoss()
     max_epoch = kwargs.get('max_epoch', 5)
+    max_steps = max_epoch * len(dataloader)
+    criteria = BBNLoss(max_steps, criterian=dict(type='CrossEntropyLoss'))
+
     save_dir = kwargs.get('save_dir', 'checkpoints')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -90,8 +95,8 @@ def train(self, dataloader, **kwargs):
     for epoch in range(max_epoch):
         cur_lr = optimizer.param_groups[0]['lr']
         self.train()
-        all_preds = np.empty((0,))
-        all_labels = np.empty((0,))
+        #all_preds = np.empty((0,))
+        #all_labels = np.empty((0,))
         for i, data in enumerate(dataloader):
             imgs = data['imgs']
             if len(imgs.shape) > 4: # frames
@@ -100,25 +105,36 @@ def train(self, dataloader, **kwargs):
                         .view(-1, *imgs.shape[1:4]))
             else:
                 seq_len = 1
-            data.pop('seq_len')
+            data['seq_len'] = seq_len
             labels = data['label']
 
             imgs = imgs.to(next(self.parameters()).device)
             labels = labels.to(next(self.parameters()).device)
 
-            preds = self(imgs, seq_len, **data)
-            loss = criteria(preds, labels)
-            acc = (preds.argmax(1) == labels).sum().item() / len(labels)
+            alpha = criteria.get_alpha()
+            self.module.head.alpha.fill_(alpha)
+            preds = self(imgs, **data)
+            #loss = criteria(preds, labels)
+            loss = criteria(preds, labels[0::2], labels[1::2])
+            acc = (
+                alpha * ((preds.argmax(1) == labels[0::2]) * 1.).mean().item()
+                + (1 - alpha)
+                  * ((preds.argmax(1) == labels[1::2]) * 1.).mean().item()
+                )
+            #acc = (preds.argmax(1) == labels).sum().item() / len(labels)
+            '''
             all_labels = np.hstack([all_labels, labels.cpu().numpy()])
             all_preds = np.hstack([all_preds,
                 preds.argmax(1).detach().cpu().numpy()])
+            '''
             if rank == 0 and i % kwargs.get('log_iters', 5) == 0:
                 print(f'Epoch {epoch+1}/{max_epoch} '
                       f'Iter: {i+1}/{len(dataloader)} '
-                      f'lr: {cur_lr} loss: {loss.item()} acc: {acc}')
+                      f'lr: {cur_lr} loss: {loss.item():.4f} acc: {acc:.4f}')
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        '''
         all_preds = collect_results_cpu(all_preds, 10000) # collect all
         all_labels = collect_results_cpu(all_labels, 10000)
         if rank == 0:
@@ -128,6 +144,7 @@ def train(self, dataloader, **kwargs):
             for cat_id in range(len(f1_scores)):
                 logs['score_train_%d'%cat_id] += [f1_scores[cat_id]]
             logs['score_train'] += [f1]
+        '''
 
         if kwargs.get('val_dataloader'):
             result = eval(self, kwargs.get('val_dataloader'), **kwargs)
@@ -153,6 +170,7 @@ def train(self, dataloader, **kwargs):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=str, default='')
     parser.add_argument('--img_root', type=str, default='')
     parser.add_argument('--ann_file', type=str, default='')
     parser.add_argument('--key_frame_only', action='store_true',
@@ -177,37 +195,25 @@ if __name__ == '__main__':
         input_size=(640, 360)) # 0.5x input_size for better efficiency
 
     outputs = []
+    cfg = Config.fromfile(args.config)
 
     indices = np.arange(len(training_set))
     k = 5
     kf = KFold(k, shuffle=True, random_state=666)
     for idx, (train_inds, val_inds) in enumerate(kf.split(indices)):
         bs = args.samples_per_gpu
+        samplers = [
+            DistributedSubsetSampler(train_inds),
+            DistributedReversedSubsetSampler(training_set, train_inds)
+            ]
         train_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
-            sampler=DistributedClassBalancedSubsetSampler(training_set, train_inds))
+            sampler=CombinedSampler(samplers))
+        #sampler=DistributedClassBalancedSubsetSampler(training_set, train_inds))
         val_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
             sampler=DistributedSubsetSampler(val_inds))
-        backbone=dict(
-            type='ResNet',
-            depth=101,
-            num_stages=4,
-            out_indices=(3,),
-            frozen_stages=4,
-            style='pytorch')
-        params= dict(
-            backbone=backbone,
-            pretrained='torchvision://resnet101',
-            bb_style='mmcls', # build backbone with mmcls or mmdet
-            bb_feat_dim=2048,
-            num_classes=4,
-            lstm=lstm,
-            bilinear_pooling=False,
-            feat_mask_dim=2,
-            feat_vec_dim=10,
-            )
         if args.local_rank == 0:
-            print(params)
-        model = Classifier(**params).to(args.local_rank)
+            print(cfg.model)
+        model = build_classifier(cfg.model).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[args.local_rank])
         output = train(model, train_loader,

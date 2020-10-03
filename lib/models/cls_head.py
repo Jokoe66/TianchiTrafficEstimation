@@ -58,9 +58,10 @@ class BBHead(nn.Module):
             logit1 = self.branch1(feat[0::2], **kwargs)
             logit2 = self.branch2(feat[1::2], **kwargs)
             #logit = torch.stack([logit1, logit2], 1).view(n, -1)
+            logit = self.alpha * logit1 + (1 - self.alpha) * logit2
         else:
             logit1 = self.branch1(feat, **kwargs)
             logit2 = self.branch2(feat, **kwargs)
             #logit = torch.stack([logit1, logit2], 1).view(2 * n, -1)
-        logit = self.alpha * logit1 + (1 - self.alpha) * logit2
+            logit = 0.5 * logit1 + 0.5 * logit2
         return logit

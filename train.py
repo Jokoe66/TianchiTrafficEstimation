@@ -7,6 +7,7 @@ sys.path.insert(0, 'lib/mmdetection')
 import pandas as pd
 import numpy as np
 import mmcv
+from mmcv.runner import load_checkpoint
 from mmcv.utils import Config
 import torch
 import torch.distributed as dist
@@ -112,6 +113,7 @@ def train(self, dataloader, **kwargs):
             labels = labels.to(next(self.parameters()).device)
 
             alpha = criteria.get_alpha()
+            #imgs = imgs[0::2] * alpha + imgs[1::2] * (1 - alpha)
             self.module.head.alpha.fill_(alpha)
             preds = self(imgs, **data)
             #loss = criteria(preds, labels)
@@ -185,8 +187,6 @@ if __name__ == '__main__':
     torch.distributed.init_process_group('nccl')
     torch.cuda.set_device(args.local_rank)
 
-    lstm = None if args.key_frame_only else 128
-
     training_set = ImageSequenceDataset(
         args.img_root,
         args.ann_file,
@@ -215,7 +215,9 @@ if __name__ == '__main__':
             print(cfg.model)
         model = build_classifier(cfg.model).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[args.local_rank])
+            model, device_ids=[args.local_rank], find_unused_parameters=True)
+        if cfg.load_from:
+            load_checkpoint(model, cfg.load_from)
         output = train(model, train_loader,
             val_dataloader=val_loader,
             log_iters=10,

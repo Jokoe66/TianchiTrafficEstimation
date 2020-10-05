@@ -98,6 +98,7 @@ def train(self, dataloader, **kwargs):
         self.train()
         #all_preds = np.empty((0,))
         #all_labels = np.empty((0,))
+        dataloader.sampler.set_epoch(epoch)
         for i, data in enumerate(dataloader):
             imgs = data['imgs']
             if len(imgs.shape) > 4: # frames

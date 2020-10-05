@@ -28,20 +28,11 @@ class ImageSequenceDataset(Dataset):
         self.img_root = img_root if img_root else self.img_root % split
         self.ann_file = ann_file if ann_file else self.ann_file % split
         self._load_anns()
-        self.img_norm = dict(mean=np.array([123.675, 116.28, 103.53]),
-                             std=np.array([58.395, 57.12, 57.375]))
         if transform:
             self.transform = Compose([
                 build_from_cfg(t, PIPELINES) for t in transform])
         else:
-            # deprecated
-            input_size = kwargs.get('input_size', (1280, 720))
-            self.transform = Compose([
-                lambda x: mmcv.imresize(x, input_size),
-                lambda x: mmcv.imnormalize(x, **self.img_norm, to_rgb=True),
-                lambda x: torch.from_numpy(x.transpose(2, 0, 1)),
-            ])
-        self.seq_max_len = kwargs.get('seq_max_len', 5)
+            self.transform = None
         self.key_frame_only = kwargs.get('key_frame_only', False)
         
     def _load_anns(self):
@@ -109,72 +100,47 @@ class ImageSequenceDataset(Dataset):
     def __getitem__(self, idx):
         ann = self.anns[idx]
         data = self.parse_ann(ann)
-        #if self.transform:
-        #    data = self.transform(data)
+        if self.transform:
+            data = self.transform(data)
         return data
 
     def parse_ann(self, ann):
+        results = defaultdict(list)
+        results['img_info'] = dict(
+            filenames=[_['frame_name'] for _ in ann['frames']]
+        )
+        results['img_prefix'] = os.path.join(self.img_root, ann['id'])
+        results['label'] = ann['status']
         if self.key_frame_only:
-            img = mmcv.imread(os.path.join(self.img_root,
-                    ann['id'], ann['key_frame'])) # bgr mode
-            if self.transform:
-                img = self.transform(img)
-            key_idx = [_['frame_name'] for _ in ann['frames']].index(
-                ann['key_frame'])
-            feats = dict()
-            feats['feat_mask'] = self.gen_feat_mask(
+            img = mmcv.imread(
+                os.path.join(results['img_prefix'],
+                ann['key_frame'])) # bgr mode
+            results['imgs'] = img
+            key_idx = results['img_info']['filenames'].index(ann['key_frame'])
+            results['feat_mask'] = self.gen_feat_mask(
                 ann['frames'][key_idx].get('feats'),
                 *img.shape[:2], keys=['vehicles', 'obstacles'])
             seq_feats = self.gen_feat_vector(ann.get('feats'),
                 seq_len=len(ann['frames']), check=True)
-            feats['feat_vector'] = seq_feats[key_idx]
+            results['feat_vector'] = seq_feats[key_idx]
+            results['key'] = 0
+            return dict(**results)
 
-            return dict(imgs=img,
-                        key=0,
-                        len_seq=1,
-                        seq_len=1,
-                        label=ann['status'],
-                        **feats)
-
-        imgs = []
-        feats = defaultdict(list)
-
-        for i in range(self.seq_max_len):
-            if i < len(ann['frames']):
-                frame = ann['frames'][i]
-                assert int(frame['frame_name'][0]) == i + 1, \
-                    f'{frame["frame_name"]} is not {i+1}th frame'
-                if frame['frame_name'] == ann['key_frame']:
-                    ann['key'] = i
-                img = mmcv.imread(os.path.join(self.img_root, 
-                    ann['id'], frame['frame_name']))
-                feats['feat_mask'].append(
-                    self.gen_feat_mask(frame.get('feats'), *img.shape[:2],
-                                       keys=['vehicles', 'obstacles']))
-            else:
-                img = np.zeros(imgs[0].shape[-2:] + (3,))
-                img = img + self.img_norm['mean'][::-1] # rgb to bgr
-                img = img.astype('uint8')
-            if self.transform:
-                img = self.transform(img)
-            imgs.append(img)
-        imgs = torch.stack(imgs, -1)
+        for i, frame in enumerate(ann['frames']):
+            assert int(frame['frame_name'][0]) == i + 1, \
+                f'{frame["frame_name"]} is not {i+1}th frame'
+            if frame['frame_name'] == ann['key_frame']:
+                results['key'] = i
+            img = mmcv.imread(
+                os.path.join(results['img_prefix'], frame['frame_name']))
+            results['imgs'].append(img)
+            results['feat_mask'].append(
+                self.gen_feat_mask(frame.get('feats'), *img.shape[:2],
+                                   keys=['vehicles', 'obstacles']))
         seq_feats = self.gen_feat_vector(ann.get('feats'),
             seq_len=len(ann['frames']), check=True)
-        feats['feat_vector'] = seq_feats
-
-        # pad and stack ndarrays with same shape (e.g. masks)
-        for k, v in feats.items():
-            if isinstance(v[0], np.ndarray) and len({b.shape for b in v}) == 1:
-                # pad ndarray features, e.g. masks
-                v.extend((self.seq_max_len - len(v)) * [np.zeros_like(v[0])])
-                feats[k] = np.stack(v, -1)
-        return dict(imgs=imgs,
-                    key=ann['key'],
-                    len_seq=len(ann['frames']),
-                    seq_len=len(ann['frames']),
-                    label=ann['status'],
-                    **feats)
+        results['feat_vector'] = seq_feats
+        return dict(**results)
 
     def __len__(self):
         return len(self.anns)

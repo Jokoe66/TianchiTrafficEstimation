@@ -35,12 +35,12 @@ def eval(model, dataloader, **kwargs):
     for data in dataloader:
         imgs = data['imgs']
         if len(imgs.shape) > 4: # frames
-            seq_len = imgs.shape[-1]
+            seq_len_max = imgs.shape[-1]
             imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
                 .view(-1, *imgs.shape[1:4]))
         else:
-            seq_len = 1
-        data['seq_len'] = seq_len
+            seq_len_max = 1
+        data['seq_len_max'] = seq_len_max
         labels = data['label']
 
         imgs = imgs.to(next(self.parameters()).device)
@@ -101,12 +101,12 @@ def train(self, dataloader, **kwargs):
         for i, data in enumerate(dataloader):
             imgs = data['imgs']
             if len(imgs.shape) > 4: # frames
-                seq_len = imgs.shape[-1]
+                seq_len_max = imgs.shape[-1]
                 imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
                         .view(-1, *imgs.shape[1:4]))
             else:
-                seq_len = 1
-            data['seq_len'] = seq_len
+                seq_len_max = 1
+            data['seq_len_max'] = seq_len_max
             labels = data['label']
 
             imgs = imgs.to(next(self.parameters()).device)
@@ -184,6 +184,11 @@ if __name__ == '__main__':
     parser.add_argument('--milestones', nargs='+', type=int,
                         default=[8, ])
     args = parser.parse_args()
+
+    cfg = Config.fromfile(args.config)
+    if args.local_rank == 0:
+        print(cfg.model)
+
     torch.distributed.init_process_group('nccl')
     torch.cuda.set_device(args.local_rank)
 
@@ -192,15 +197,25 @@ if __name__ == '__main__':
         args.ann_file,
         'train',
         key_frame_only=args.key_frame_only,
-        input_size=(640, 360)) # 0.5x input_size for better efficiency
+        transform=cfg.train_pipeline,
+        )
+    val_set = ImageSequenceDataset(
+        args.img_root,
+        args.ann_file,
+        'train',
+        key_frame_only=args.key_frame_only,
+        transform=cfg.test_pipeline,
+        )
 
     outputs = []
-    cfg = Config.fromfile(args.config)
 
     indices = np.arange(len(training_set))
     k = 5
     kf = KFold(k, shuffle=True, random_state=666)
     for idx, (train_inds, val_inds) in enumerate(kf.split(indices)):
+        torch.manual_seed(666)
+        torch.cuda.manual_seed_all(666)
+        np.random.seed(666)
         bs = args.samples_per_gpu
         samplers = [
             DistributedSubsetSampler(train_inds),
@@ -209,10 +224,8 @@ if __name__ == '__main__':
         train_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
             sampler=CombinedSampler(samplers))
         #sampler=DistributedClassBalancedSubsetSampler(training_set, train_inds))
-        val_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
+        val_loader = DataLoader(val_set, batch_size=bs, num_workers=4,
             sampler=DistributedSubsetSampler(val_inds))
-        if args.local_rank == 0:
-            print(cfg.model)
         model = build_classifier(cfg.model).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[args.local_rank], find_unused_parameters=True)

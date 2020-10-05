@@ -8,6 +8,8 @@ import torch
 import mmcv
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose
+from mmcv.utils import build_from_cfg
+from mmcls.datasets import PIPELINES
 
 
 class ImageSequenceDataset(Dataset):
@@ -29,8 +31,10 @@ class ImageSequenceDataset(Dataset):
         self.img_norm = dict(mean=np.array([123.675, 116.28, 103.53]),
                              std=np.array([58.395, 57.12, 57.375]))
         if transform:
-            self.transform = transform
+            self.transform = Compose([
+                build_from_cfg(t, PIPELINES) for t in transform])
         else:
+            # deprecated
             input_size = kwargs.get('input_size', (1280, 720))
             self.transform = Compose([
                 lambda x: mmcv.imresize(x, input_size),
@@ -104,6 +108,12 @@ class ImageSequenceDataset(Dataset):
 
     def __getitem__(self, idx):
         ann = self.anns[idx]
+        data = self.parse_ann(ann)
+        #if self.transform:
+        #    data = self.transform(data)
+        return data
+
+    def parse_ann(self, ann):
         if self.key_frame_only:
             img = mmcv.imread(os.path.join(self.img_root,
                     ann['id'], ann['key_frame'])) # bgr mode

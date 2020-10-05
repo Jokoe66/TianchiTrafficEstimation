@@ -112,10 +112,19 @@ class Seq(nn.Module):
         self.lstm = torch.nn.GRU(
             in_channel, hidden_size) if hidden_size else None
 
-    def forward(self, feat, seq_len):
-        if self.lstm:
-            feat = feat.view(seq_len, len(feat)//seq_len, -1)
-            feat, _ = self.lstm(feat)
+    def forward(self, feat, seq_len_max, seq_len=None, key=None, **kwargs):
+        feat = feat.view(seq_len_max, len(feat)//seq_len_max, -1)
+        feat, _ = self.lstm(feat)
+        if key is not None:
+            # emphasize key frame
+            weights = feat.new_ones(feat.shape) * 0.8
+            for b in range(len(key)):
+                weights[key[b], b] *= 1.5
+            feat = feat * weights
+        if seq_len is not None:
+            feat = torch.stack(
+                [feat[:seq_len[b], b].mean(0) for b in range(len(seq_len))], 0) #b, c
+        else:
             feat = feat.mean(0)
         return feat
 
@@ -162,7 +171,7 @@ class PFFSeqNeck(nn.Module):
         # feature fusion
         feat = self.ff(feat, **kwargs)
         # combine seqence features
-        feat = self.lstm(feat, kwargs.get('seq_len', 5))
+        feat = self.lstm(feat, **kwargs)
         return feat
 
 
@@ -195,5 +204,5 @@ class PFFBPSeqNeck(PFFSeqNeck):
         # feature vector fusion
         feat = self.ff.feat_vector_fusion(feat, kwargs.get('feat_vector'))
         # combine seqence features
-        feat = self.lstm(feat, kwargs.get('seq_len', 5))
+        feat = self.lstm(feat, **kwargs)
         return feat

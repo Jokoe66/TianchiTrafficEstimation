@@ -145,14 +145,10 @@ class ReversedSubsetSampler(Sampler):
         np.random.seed(self.epoch)
         all_inds = []
         for cat, num_reversed in self.nums_reversed.items():
-            # pad inds to num_total in case that num_reversed > len(inds)
             inds = self.cat2inds[cat]
-            num_append = self.num_total - len(inds)
-            inds_append = (inds * (1 + num_append // len(inds))
-                           + inds[:num_append % len(inds)])
-            all_inds += inds_append[:num_reversed]
+            inds = np.array(inds)[np.random.randint(0, len(inds), (num_reversed,))]
+            all_inds += inds.tolist()
         np.random.shuffle(all_inds)
-        self.epoch += 1
         return iter(all_inds)
 
     def __len__(self):
@@ -186,12 +182,10 @@ class DistributedReversedSubsetSampler(Sampler):
         np.random.seed(self.epoch)
         all_inds = []
         for cat, num_reversed in self.nums_reversed.items():
-            # pad inds to num_total in case that num_reversed > len(inds)
             inds = self.cat2inds[cat]
-            num_append = self.num_total - len(inds)
-            inds_append = (inds * (1 + num_append // len(inds))
-                           + inds[:num_append % len(inds)])
-            all_inds += inds_append[:num_reversed]
+            rand_inds = np.array(inds)[
+                np.random.randint(0, len(inds), (num_reversed,))]
+            all_inds += rand_inds.tolist()
         np.random.shuffle(all_inds)
         # inds on each device
         all_inds = all_inds[self.rank:self.num_total:self.num_replicas]

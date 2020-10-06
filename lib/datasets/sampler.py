@@ -67,7 +67,7 @@ class DistributedClassBalancedSubsetSampler(Sampler):
 
 class DistributedSubsetSampler(Sampler):
 
-    def __init__(self, indices):
+    def __init__(self, indices, shuffle=False):
         rank, num_replicas = get_dist_info()
         self.indices = list(indices)
         self.num_replicas = num_replicas
@@ -75,12 +75,14 @@ class DistributedSubsetSampler(Sampler):
         self.epoch = 0
         self.num_samples = int(np.ceil(len(self.indices) * 1.0 / self.num_replicas))
         self.total_size = self.num_samples * self.num_replicas
+        self.shuffle = shuffle
 
     def __iter__(self):
         # deterministically shuffle based on epoch
         np.random.seed(self.epoch)
         indices = self.indices[:] # copy
-        np.random.shuffle(indices)
+        if self.shuffle:
+            np.random.shuffle(indices)
 
         # add extra samples to make it evenly divisible
         indices += indices[:(self.total_size - len(indices))]

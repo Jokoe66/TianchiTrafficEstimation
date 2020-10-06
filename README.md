@@ -8,6 +8,9 @@
 | hand-crafted features + DCNN features + Resnet101| 0.90 | 0.18 | 0.66 | 0.98  | 0.716 | 0.6170|
 
 ### Taks1: Scene Recognition
+
+#### Logistic regression
+
 Directly classify scene images into several traffic status (unimpeded, congested and slow), based on the deep convolutional features.
 
 |    Backbone    | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
@@ -31,17 +34,52 @@ Note:
 |  Resnet101 + FT3 + feat_mask + feat_vector | 0.91 | 0.12 | 0.70 | 0.98  | 0.716 |
 |  Resnet50 + feat_mask + feat_vector  | 0.89 | 0.14 | 0.66 | 0.98  | 0.708 |
 |  Resnet50 + FT2 | 0.91 | 0.09 | 0.70 | 0.99  | 0.715 |
+|  Resnet50 + FT2 + mixup | 0.87 | 0.20 | 0.66 | 0.99  | 0.720 |
+|  Resnet50 + FT2 + BBN(LSTM rep) | 0.90 | 0.19 | 0.66 | 1.00  | 0.725 |
+|  Resnet50 + FT2 + BBN(LSTM cls) | 0.89 | 0.17 | 0.67 | 1.00  | 0.722 |
+|  Resnet50 + FT2 + BBN(LSTM rep) + data aug| 0.90 | 0.16 | 0.63 | 0.95  | 0.693 |
+|  \*\*Resnet50 + FT2 + BBN(LSTM rep) + ISR1 | 0.91 | 0.17 | 0.69 | 1.00  | 0.731 |
+|  \*\*Resnet50 + FT2 + BBN(LSTM rep) + ISR2 | 0.91 | 0.15 | 0.70 | 1.00  | 0.730 |
+|  EfficientNetB4 + FT2(BS8) + BBN(LSTM rep) | 0.80 | 0.12 | 0.40 | 0.93  | 0.596 |
+|  EfficientNetB4 + FT4(BS32) + BBN(LSTM rep) | 0.82 | 0.17 | 0.58 | 0.96  | 0.673 |
+|  Resnet50 + FT1 | 0.87 | 0.19 | 0.62 | 0.99  | 0.708 |
 |  \*Resnet50 + FT2 + bilinear pooling | 0.85 | 0.19 | 0.57 | 0.97  | 0.679 |
 |  \*ResNeSt101 + feat_mask + feat_vector | 0.90 | 0.06 | 0.66 | 0.97  | 0.689 |
 
 Note:
-* All methods use oversampling and GRU.
-* All methods are trained for 4 epochs with initial lr 1e-3. lr decays by a factor of 0.1
-  after epoch 2 and 3, respectively. (See Usage)
+* All methods use oversampling(except for BBN) and GRU.
 * \* denotes models trained and evaluated in the first fold, and trained for 2 epochs.
 * FT denotes fine-tuning. By default, the bakbones are fixed during training. FTn denotes
   layers after n-th layer are fine-tuned during training.
+* LSTM rep denotes LSTM acts as part of a feature extractor, while LSTM cls acts as part of a classifier.
 * DP denotes dropout.
+* ISR denotes Improved Sequence Representation. Vanilla sequence representation is an averages
+    over all LSTM hidden_states, inlucding valid frames and invalid paddings. By using the
+    sequence information(key frame index and sequence length), ISR is a re-weighted average
+    over valid hidden_states. The weight of hidden_state at key frame is twice greater than
+    others'. ISR1 denotes ISR with sequence length. ISR2 denotes ISR with both sequence length
+    and key frame index.
+* Only results denoted by \*\* are latest.
+
+#### Ordinal Logistic Regression
+Ordinal logistic regression models the ordinal relationship between classes. It is commonly
+applied to ranking problems, e.g. age estimation, height estimation. Considering the congestion
+grows from uninpeded to congested, ordinal logistic regression is suitable to model the traffic
+status estimation problem. A classic approach to ordinal logistic regression is K-rank model.
+The model makes K(num_classes - 1) predictions O = {O<sub>0</sub>, ..., O<sub>K-1</sub>},
+where the i-th prediction gieves the probability that the class > i. The probability of i-th
+class equals to O<sub>i - 1</sub> - O<sub>i</sub> . Thus K-rank can be implemented with K binary
+classification models.
+
+|    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
+|     :---:             | :---:| :---:| :---:| :---: | :--:  |
+|  Res50 + FT2 + K-rank | 0.91 | 0.23 | 0.66 | 0.99  | 0.734 |
+|  Res50 + FT2 + K-rank + BBN |      |      |      |       |       |
+|  Res50 + FT2 + SORD   |      |      |      |       |       |
+
+NOTE:
+* By default, the oversampling strategy is adopted to handle imbalanced class distribution.
+* [SORD](https://rauldiaz.github.io/pdfs/sord_cvpr_2019.pdf)
 
 #### Usage
 在运行之前需要把mmclassification安装到环境中:

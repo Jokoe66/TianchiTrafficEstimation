@@ -133,14 +133,14 @@ class ReversedSubsetSampler(Sampler):
         self.cat2inds = defaultdict(list)
         for ind in indices:
             self.cat2inds[(dataset.get_cat_ids(ind))].append(ind)
-        num_total = sum(len(_) for _ in self.cat2inds.values())
         reci_probs = {cat: num_total * 1. / len(inds)
                  for cat, inds in self.cat2inds.items()}
         sum_reci_probs = sum(_ for _ in reci_probs.values())
         self.nums_reversed = {
-            cat: int(np.ceil(num_total * reci_prob / sum_reci_probs))
+            cat: int(len(indices) * 10 * reci_prob / sum_reci_probs)
             for cat, reci_prob in reci_probs.items()}
-        self.num_total = sum(n for n in self.nums_reversed.values())
+        self.num_total = int(np.ceil(len(indices) / self.num_replicas)
+                             * self.num_replicas)
         self.epoch = 0
 
     def __iter__(self):
@@ -148,9 +148,11 @@ class ReversedSubsetSampler(Sampler):
         all_inds = []
         for cat, num_reversed in self.nums_reversed.items():
             inds = self.cat2inds[cat]
-            inds = np.array(inds)[np.random.randint(0, len(inds), (num_reversed,))]
+            inds = np.array(inds)[
+                np.random.randint(0, len(inds), (num_reversed,))]
             all_inds += inds.tolist()
         np.random.shuffle(all_inds)
+        all_inds = all_inds[:self.num_total]
         return iter(all_inds)
 
     def __len__(self):
@@ -167,17 +169,14 @@ class DistributedReversedSubsetSampler(Sampler):
         self.cat2inds = defaultdict(list)
         for ind in indices:
             self.cat2inds[(dataset.get_cat_ids(ind))].append(ind)
-        num_total = sum(len(_) for _ in self.cat2inds.values())
         reci_probs = {cat: num_total * 1. / len(inds)
                  for cat, inds in self.cat2inds.items()}
         sum_reci_probs = sum(_ for _ in reci_probs.values())
         self.nums_reversed = {
-            cat: int(np.ceil(
-                        num_total
-                        * reci_prob / sum_reci_probs / self.num_replicas)
-                     * self.num_replicas)
+            cat: int(len(indices) * 10 * reci_prob / sum_reci_probs)
             for cat, reci_prob in reci_probs.items()}
-        self.num_total = sum(n for n in self.nums_reversed.values())
+        self.num_total = int(np.ceil(len(indices) / self.num_replicas)
+                             * self.num_replicas)
         self.epoch = 0
 
     def __iter__(self):
@@ -189,6 +188,7 @@ class DistributedReversedSubsetSampler(Sampler):
                 np.random.randint(0, len(inds), (num_reversed,))]
             all_inds += rand_inds.tolist()
         np.random.shuffle(all_inds)
+        all_inds = all_inds[:self.num_total]
         # inds on each device
         all_inds = all_inds[self.rank:self.num_total:self.num_replicas]
         return iter(all_inds)

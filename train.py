@@ -13,7 +13,7 @@ import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from sklearn.model_selection import KFold
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, confusion_matrix
 from mmcls.models import build_classifier
 
 from lib.datasets import (ImageSequenceDataset, ClassBalancedSubsetSampler,
@@ -41,7 +41,7 @@ def eval(model, dataloader, **kwargs):
         else:
             seq_len_max = 1
         data['seq_len_max'] = seq_len_max
-        labels = data['label']
+        labels = data['labels']
 
         imgs = imgs.to(next(self.parameters()).device)
         labels = labels.to(next(self.parameters()).device)
@@ -60,11 +60,13 @@ def eval(model, dataloader, **kwargs):
     all_labels = collect_results_cpu(
         all_labels, len(val_loader.dataset))
     if rank == 0:
+        cm = confusion_matrix(all_labels, all_preds)
         f1_scores = f1_score(all_labels, all_preds, average=None)
         class_weights = kwargs.get('class_weights', [0.25] * 4)
         f1 = (np.array(class_weights) * f1_scores).sum()
         return dict(f1_scores=f1_scores,
-                    f1=f1)
+                    f1=f1,
+                    cm=cm)
     else:
         return None
 
@@ -81,13 +83,7 @@ def train(self, dataloader, **kwargs):
         kwargs.get('gamma', 0.1))
     #lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
     #    optimizer, kwargs.get('max_epoch', 5) // 3)
-    # re-weighting for balancing class distribution
-    #class_weights = torch.tensor(
-    #    [0.1, 0.2, 0.3, 0.4], device=next(self.parameters().device)
-    #criteria = torch.nn.CrossEntropyLoss()
     max_epoch = kwargs.get('max_epoch', 5)
-    max_steps = max_epoch * len(dataloader)
-    criteria = BBNLoss(max_steps, criterian=dict(type='CrossEntropyLoss'))
 
     save_dir = kwargs.get('save_dir', 'checkpoints')
     if not os.path.exists(save_dir):
@@ -108,32 +104,24 @@ def train(self, dataloader, **kwargs):
             else:
                 seq_len_max = 1
             data['seq_len_max'] = seq_len_max
-            labels = data['label']
+            labels = data['labels']
 
             imgs = imgs.to(next(self.parameters()).device)
             labels = labels.to(next(self.parameters()).device)
 
-            alpha = criteria.get_alpha()
-            #imgs = imgs[0::2] * alpha + imgs[1::2] * (1 - alpha)
-            self.module.head.alpha.fill_(alpha)
-            preds = self(imgs, **data)
-            #loss = criteria(preds, labels)
-            loss = criteria(preds, labels[0::2], labels[1::2])
-            acc = (
-                alpha * ((preds.argmax(1) == labels[0::2]) * 1.).mean().item()
-                + (1 - alpha)
-                  * ((preds.argmax(1) == labels[1::2]) * 1.).mean().item()
-                )
-            #acc = (preds.argmax(1) == labels).sum().item() / len(labels)
+            losses = self(imgs, **data)
+            loss = sum(v for k, v in losses.items() if 'loss' in k)
             '''
+            #acc = (preds.argmax(1) == labels).sum().item() / len(labels)
             all_labels = np.hstack([all_labels, labels.cpu().numpy()])
             all_preds = np.hstack([all_preds,
                 preds.argmax(1).detach().cpu().numpy()])
             '''
             if rank == 0 and i % kwargs.get('log_iters', 5) == 0:
+                log_str = f' '.join(f'{k}: {v.item():.4f}'
+                                    for k, v in losses.items())
                 print(f'Epoch {epoch+1}/{max_epoch} '
-                      f'Iter: {i+1}/{len(dataloader)} '
-                      f'lr: {cur_lr} loss: {loss.item():.4f} acc: {acc:.4f}')
+                      f'Iter: {i+1}/{len(dataloader)} lr: {cur_lr} {log_str}')
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -153,6 +141,7 @@ def train(self, dataloader, **kwargs):
             result = eval(self, kwargs.get('val_dataloader'), **kwargs)
             if rank == 0:
                 logs['score'] += [result['f1']]
+                logs['cm'] = result['cm']
                 f1_scores = result['f1_scores']
                 for cat_id in range(len(f1_scores)):
                     logs['score_%d'%cat_id] += [f1_scores[cat_id]]
@@ -161,6 +150,8 @@ def train(self, dataloader, **kwargs):
         lr_scheduler.step()
         if rank == 0:
             print(f'Epoch {epoch+1}/{max_epoch} lr: {cur_lr}')
+            print('confusion matrix:')
+            print(logs.pop('cm'))
             print(pd.DataFrame(logs).transpose())
     if rank == 0:
         best_epoch = np.argmax(logs['score'])
@@ -220,13 +211,14 @@ if __name__ == '__main__':
         bs = args.samples_per_gpu
         samplers = [
             DistributedSubsetSampler(train_inds),
-            DistributedReversedSubsetSampler(training_set, train_inds)
+            DistributedReversedSubsetSampler(training_set, train_inds),
+            DistributedClassBalancedSubsetSampler(training_set, train_inds)
             ]
+        # specify sampler here to use different long-tail distribution handling
         train_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
-            sampler=CombinedSampler(samplers))
-        #sampler=DistributedClassBalancedSubsetSampler(training_set, train_inds))
+            sampler=CombinedSampler(samplers[:2]))  # samplers[2] for RS
         val_loader = DataLoader(val_set, batch_size=bs, num_workers=4,
-            sampler=DistributedSubsetSampler(val_inds))
+            sampler=DistributedSubsetSampler(val_inds, shuffle=False))
         model = build_classifier(cfg.model).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[args.local_rank], find_unused_parameters=True)

@@ -110,7 +110,7 @@ class ImageSequenceDataset(Dataset):
             filenames=[_['frame_name'] for _ in ann['frames']]
         )
         results['img_prefix'] = os.path.join(self.img_root, ann['id'])
-        results['label'] = ann['status']
+        results['labels'] = ann['status']
         if self.key_frame_only:
             img = mmcv.imread(
                 os.path.join(results['img_prefix'],

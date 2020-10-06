@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-from mmcls.models import build_head
+from mmcls.models import build_head, build_loss
 from mmcls.models.builder import HEADS
 
 from .necks import Seq
+from .utils import AlphaScheduler
 
 @HEADS.register_module()
 class DPClsHead(nn.Module):
@@ -11,16 +12,103 @@ class DPClsHead(nn.Module):
     def __init__(self,
                  in_channel,
                  dropout=0,
-                 num_classes=1000
+                 num_classes=1000,
+                 loss=dict(type='CrossEntropyLoss'),
+                 acc=dict(type='Accuracy', topk=(1,))
                  ):
         super(DPClsHead, self).__init__()
         self.fc = torch.nn.Sequential(
             torch.nn.Dropout(0.00),
             torch.nn.Linear(in_channel, num_classes))
+        self.criterion = build_loss(loss)
+        self.acc = build_loss(acc)
 
     def forward(self, feat, **kwargs):
         logit = self.fc(feat)
         return logit
+
+    def loss(self, preds, labels, **kwargs):
+        loss = self.criterion(preds, labels)
+        acc = self.acc(preds, labels)
+        return dict(loss_head=loss,
+                    acc=acc)
+
+
+@HEADS.register_module()
+class DPORHead(nn.Module):
+
+    def __init__(self,
+                 in_channel,
+                 dropout=0,
+                 num_classes=1000,
+                 loss=dict(type='BCEWithLogitsLoss'),
+                 acc=dict(type='BAccuracy'),
+                 ):
+        super(DPORHead, self).__init__()
+        self.fc = torch.nn.Sequential(
+            torch.nn.Dropout(0.00),
+            torch.nn.Linear(in_channel, num_classes - 1))
+        self.criterion = build_loss(loss)
+        self.acc = build_loss(acc)
+
+    def forward(self, feat, **kwargs):
+        logit = self.fc(feat)
+        if not self.training:
+            logit = torch.sigmoid(logit)
+            logit = torch.cat([
+                logit.new_ones((len(logit), 1)),
+                logit,
+                logit.new_zeros((len(logit), 1))], 1)
+            logit = logit[:, :-1] - logit[:, 1:]
+        return logit
+
+    def loss(self, preds, labels, **kwargs):
+        targets = torch.zeros_like(preds)
+        for b in range(len(labels)):
+            targets[b, :labels[b]] = 1
+        loss = self.criterion(preds, targets)
+        acc = self.acc(preds, targets)
+        return dict(loss_head=loss,
+                    acc=acc)
+
+
+@HEADS.register_module()
+class ClsORHead(nn.Module):
+
+    def __init__(self,
+                 cls_head,
+                 or_head,
+                 ):
+        super(ClsORHead, self).__init__()
+        self.cls_head = build_head(cls_head)
+        self.or_head = build_head(or_head)
+
+    def forward(self, feat, **kwargs):
+        logit = self.cls_head(feat)
+        rank = self.or_head(feat)
+        if not self.training:
+            prob = torch.sigmoid(logit)
+            pred = torch.cat([rank * prob, 1 - prob], 1) 
+        else:
+            pred = torch.cat([rank, logit], 1)
+        return pred
+
+    def loss(self, preds, labels, **kwargs):
+        logit = preds[:, -1]
+        cls_labels = (labels != preds.shape[1]).type(torch.float32)
+        losses = self.cls_head.loss(logit, cls_labels)
+        cls_loss = losses['loss_head']
+        cls_acc = losses['acc']
+        rank = preds[:, :-1]
+        rank_losses = self.or_head.loss(rank, labels)
+        rank_loss = rank_losses['loss_head']
+        rank_acc = rank_losses['acc']
+        rank_loss = (rank_loss * cls_labels.unsqueeze(1)).mean()
+        loss = cls_loss + rank_loss
+        return dict(loss_head=loss,
+                    cls_acc=cls_acc,
+                    rank_acc=rank_acc,
+                    )
 
 
 @HEADS.register_module()
@@ -36,20 +124,29 @@ class LSTMDPClsHead(nn.Module):
         self.lstm = Seq(**lstm)
         self.cls_head = build_head(cls_head)
 
-    def forward(self, feat, seq_len=5, **kwargs):
-        feat = self.lstm(feat, seq_len)
+    def forward(self, feat, seq_len_max=5, **kwargs):
+        feat = self.lstm(feat, seq_len_max)
         logit = self.cls_head(feat, **kwargs)
         return logit
+
+    def loss(self, preds, labels, **kwargs):
+        loss = self.cls_head.loss(preds, labels)['loss_head']
+        acc = self.cls_head.acc(preds, labels)
+        return dict(loss_head=loss,
+                    acc=acc)
 
 
 @HEADS.register_module()
 class BBHead(nn.Module):
 
-    def __init__(self, head):
+    def __init__(self,
+                 head,
+                 alpha_scheduler=dict(max_steps=1716),
+                ):
         super(BBHead, self).__init__()
         self.branch1 = build_head(head)
         self.branch2 = build_head(head)
-        self.register_buffer('alpha', torch.tensor(1.))
+        self.scheduler = AlphaScheduler(**alpha_scheduler)
 
     def forward(self, feat, **kwargs):
         n, c = feat.shape
@@ -57,11 +154,21 @@ class BBHead(nn.Module):
             assert n % 2 == 0, "Batchsize must be divisible by 2."
             logit1 = self.branch1(feat[0::2], **kwargs)
             logit2 = self.branch2(feat[1::2], **kwargs)
-            #logit = torch.stack([logit1, logit2], 1).view(n, -1)
-            logit = self.alpha * logit1 + (1 - self.alpha) * logit2
+            alpha = self.scheduler.alpha
+            logit = alpha * logit1 + (1 - alpha) * logit2
         else:
             logit1 = self.branch1(feat, **kwargs)
             logit2 = self.branch2(feat, **kwargs)
-            #logit = torch.stack([logit1, logit2], 1).view(2 * n, -1)
             logit = 0.5 * logit1 + 0.5 * logit2
         return logit
+
+    def loss(self, preds, labels, **kwargs):
+        losses1 = self.branch1.loss(preds, labels[0::2])
+        losses2 = self.branch2.loss(preds, labels[1::2])
+        alpha = self.scheduler.alpha
+        loss = (alpha * losses1['loss_head']
+                + (1 - alpha) * losses2['loss_head'])
+        acc = alpha * losses1['acc'] + (1 - alpha) * losses2['acc']
+        self.scheduler.step()
+        return dict(loss_head=loss,
+                    acc=acc)

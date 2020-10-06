@@ -133,7 +133,7 @@ class ReversedSubsetSampler(Sampler):
         self.cat2inds = defaultdict(list)
         for ind in indices:
             self.cat2inds[(dataset.get_cat_ids(ind))].append(ind)
-        reci_probs = {cat: num_total * 1. / len(inds)
+        reci_probs = {cat: len(indices) * 1. / len(inds)
                  for cat, inds in self.cat2inds.items()}
         sum_reci_probs = sum(_ for _ in reci_probs.values())
         self.nums_reversed = {
@@ -169,7 +169,7 @@ class DistributedReversedSubsetSampler(Sampler):
         self.cat2inds = defaultdict(list)
         for ind in indices:
             self.cat2inds[(dataset.get_cat_ids(ind))].append(ind)
-        reci_probs = {cat: num_total * 1. / len(inds)
+        reci_probs = {cat: len(indices) * 1. / len(inds)
                  for cat, inds in self.cat2inds.items()}
         sum_reci_probs = sum(_ for _ in reci_probs.values())
         self.nums_reversed = {

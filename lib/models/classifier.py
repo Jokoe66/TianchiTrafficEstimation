@@ -41,4 +41,29 @@ class Classifier(torch.nn.Module):
     def forward(self, input, **kwargs):
         feat = self.extract_feat(input, **kwargs)
         logit = self.head(feat, **kwargs)
-        return logit 
+        if self.training:
+            losses = dict()
+            loss_head = self.head.loss(logit, **kwargs)
+            losses.update(loss_head)
+            return losses
+        else:
+            return logit
+
+
+@CLASSIFIERS.register_module()
+class MixupClassifier(Classifier):
+
+    def forward(self, input, **kwargs):
+        if self.training:
+            alpha = self.head.criterion.scheduler.alpha
+            input = alpha * input[0::2] + (1 - alpha) * input[1::2]
+            feat = self.extract_feat(input, **kwargs)
+            logit = self.head(feat, **kwargs)
+            losses = dict()
+            loss_head = self.head.loss(logit, **kwargs)
+            losses.update(loss_head)
+            return losses
+        else:
+            feat = self.extract_feat(input, **kwargs)
+            logit = self.head(feat, **kwargs)
+            return logit

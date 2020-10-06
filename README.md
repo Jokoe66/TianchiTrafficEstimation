@@ -67,8 +67,8 @@ applied to ranking problems, e.g. age estimation, height estimation. Considering
 grows from uninpeded to congested, ordinal logistic regression is suitable to model the traffic
 status estimation problem. A classic approach to ordinal logistic regression is K-rank model.
 The model makes K(num_classes - 1) predictions O = {O<sub>0</sub>, ..., O<sub>K-1</sub>},
-where the i-th prediction gieves the probability that the class > i. The probability of i-th
-class equals to O<sub>i - 1</sub> - O<sub>i</sub> . Thus K-rank can be implemented with K binary
+where the i-th prediction gives the probability that the class > i. The probability of i-th
+class equals to O<sub>i - 1</sub> - O<sub>i</sub> . K-rank can be implemented with K binary
 classification models.
 
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
@@ -89,9 +89,10 @@ pip install -e .
 ```
 ```shell
 CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node 1 train.py \
+    --config configs/classifiers/classifier_r50_or_bbn.py \
     --img_root /path/to/amap_traffic_final_train_data \
     --ann_file  /path/to/amap_traffic_final_train_0906.json/or/enriched/one \
-    --lr 0.001 --max_epoch 4 --milestones 2 3  --samples_per_gpu 8
+    --lr 0.00025 --max_epoch 8 --milestones 8 --samples_per_gpu 8
 ```
 ```shell
 python -u test.py \

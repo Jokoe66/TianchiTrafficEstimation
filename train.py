@@ -149,7 +149,7 @@ def train(self, dataloader, **kwargs):
                     save_dir, f'classifier_epoch{epoch+1}.pth'))
         lr_scheduler.step()
         if rank == 0:
-            print(f'Epoch {epoch+1}/{max_epoch} lr: {cur_lr}')
+            print(f'\nEpoch {epoch+1}/{max_epoch} lr: {cur_lr}')
             print('confusion matrix:')
             print(logs.pop('cm'))
             print(pd.DataFrame(logs).transpose())
@@ -216,7 +216,7 @@ if __name__ == '__main__':
             ]
         # specify sampler here to use different long-tail distribution handling
         train_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
-            sampler=CombinedSampler(samplers[:2]))  # samplers[2] for RS
+            sampler=samplers[2])#CombinedSampler(samplers[:2])) # for BBN
         val_loader = DataLoader(val_set, batch_size=bs, num_workers=4,
             sampler=DistributedSubsetSampler(val_inds, shuffle=False))
         model = build_classifier(cfg.model).to(args.local_rank)

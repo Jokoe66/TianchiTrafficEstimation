@@ -166,9 +166,10 @@ class BBHead(nn.Module):
         losses1 = self.branch1.loss(preds, labels[0::2])
         losses2 = self.branch2.loss(preds, labels[1::2])
         alpha = self.scheduler.alpha
-        loss = (alpha * losses1['loss_head']
-                + (1 - alpha) * losses2['loss_head'])
-        acc = alpha * losses1['acc'] + (1 - alpha) * losses2['acc']
+        losses = dict()
+        for k in losses1:
+            v = (alpha * losses1[k]
+                    + (1 - alpha) * losses2[k])
+            losses[k] = v
         self.scheduler.step()
-        return dict(loss_head=loss,
-                    acc=acc)
+        return losses

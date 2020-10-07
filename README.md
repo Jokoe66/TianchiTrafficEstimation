@@ -77,7 +77,9 @@ classification models.
 |  Res50 + FT2 + 4-rank + BBN |      |      |      |       |       |
 |  Res50 + FT2 + 3-rank + 1-cls | 0.93 | 0.26 | 0.71 | 1.00  | 0.756 |
 |  Res50 + FT2 + 3-rank + 1-cls + BBN | 0.89 |0.19  | 0.52 | 0.99  | 0.679 |
-|  Res50 + FT2 + SORD   |      |      |      |       |       |
+|  Res50 + FT2 + SORD   | 0.91 | 0.16 | 0.64 | 0.99  | 0.71  |
+|  Res50 + FT2 + SORD + 1-cls |      |      |      |       |       |
+|  Res50 + FT2 + SORD + BBN  |      |      |      |       |       |
 
 NOTE:
 * By default, the oversampling strategy is adopted to handle imbalanced class distribution.

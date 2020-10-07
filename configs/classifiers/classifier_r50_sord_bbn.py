@@ -24,12 +24,18 @@ model = dict(
             in_channel=9*16*256,
             hidden_size=128)),
     head=dict(
-        type='DPClsHead',
-        in_channel=128,
-        dropout=0,
-        num_classes=4,
-        loss=dict(type='SORDLoss', beta=1.8),
-        acc=dict(type='Accuracy', topk=1)))
+        type='BBHead',
+        head=dict(
+            type='DPClsHead',
+            in_channel=128,
+            dropout=0,
+            num_classes=4,
+            loss=dict(type='SORDLoss', beta=1.8),
+            acc=dict(type='Accuracy', topk=1)),
+        #np.ceil(len(training_set) / ngpu) / samples_per_gpu * max_epochs
+        #np.ceil(3431 / 4) / 4 * 8 = 1716
+        # BBN loads data from two sampler, thus samples_per_gpu is half.
+        alpha_scheduler=dict(max_steps=1716)))
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53],
                     std=[58.395, 57.12, 57.375],

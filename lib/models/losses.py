@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from mmcls.models.builder import LOSSES
 from mmcls.models import build_loss
-from mmcls.models.losses import Accuracy
+from mmcls.models.losses import Accuracy, weight_reduce_loss
 
 from .utils import AlphaScheduler
 
@@ -65,17 +65,30 @@ class SORDLoss(nn.Module):
     """ Soft Ordinal Label loss.
     """
 
-    def __init__(self):
+    def __init__(self, beta, weight=None, reduction='mean', avg_factor=None):
         super(SORDLoss, self).__init__()
-        self.kl_div = nn.KLDivLoss()
+        self.beta = beta
+        if weight is not None:
+            weight = weight.float()
+        self.weight = weight
+        self.reduction = reduction
+        self.avg_factor = avg_factor
 
     def forward(self, preds, labels):
-        soft_labels = torch.zeros_like(preds)
-        for cls in range(preds.shape[1]):
-            soft_labels[:, cls] = torch.exp(
-                -1.8 * (labels.type_as(preds) - cls) ** 2)
-        soft_labels /= soft_labels.sum(1, keepdim=True)
-        return self.kl_div(preds, soft_labels)
+        soft_labels = -self.beta * (torch.arange(preds.shape[1])
+                                   .expand_as(preds)
+                                   .to(labels.device)
+                              - labels.unsqueeze(1)
+                                      .type_as(preds)
+                                      .expand_as(preds)) ** 2
+        soft_labels = F.softmax(soft_labels, dim=1)
+        loss = -F.log_softmax(preds, dim=1) * soft_labels
+        loss = weight_reduce_loss(
+            loss,
+            weight=self.weight,
+            reduction=self.reduction,
+            avg_factor=self.avg_factor)
+        return loss
 
 
 @LOSSES.register_module()

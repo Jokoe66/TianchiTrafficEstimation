@@ -14,7 +14,7 @@ class DPClsHead(nn.Module):
                  dropout=0,
                  num_classes=1000,
                  loss=dict(type='CrossEntropyLoss'),
-                 acc=dict(type='Accuracy', topk=(1,)),
+                 acc=dict(type='Accuracy', topk=(1,))
                  ):
         super(DPClsHead, self).__init__()
         self.fc = torch.nn.Sequential(
@@ -30,8 +30,8 @@ class DPClsHead(nn.Module):
     def loss(self, preds, labels, **kwargs):
         loss = self.criterion(preds, labels)
         acc = self.acc(preds, labels)
-        return {f'loss_cls': loss,
-                f'acc_cls': acc}
+        return {'loss_cls': loss,
+                'acc_cls': acc}
 
 
 @HEADS.register_module()
@@ -42,7 +42,7 @@ class DPORHead(nn.Module):
                  dropout=0,
                  num_classes=1000,
                  loss=dict(type='BCEWithLogitsLoss'),
-                 acc=dict(type='BAccuracy'),
+                 acc=dict(type='BAccuracy')
                  ):
         super(DPORHead, self).__init__()
         self.fc = torch.nn.Sequential(
@@ -133,8 +133,8 @@ class LSTMDPClsHead(nn.Module):
         return logit
 
     def loss(self, preds, labels, **kwargs):
-        loss = self.cls_head.loss(preds, labels)
-        return loss
+        losses = self.cls_head.loss(preds, labels)
+        return losses
 
 
 @HEADS.register_module()
@@ -169,11 +169,9 @@ class BBHead(nn.Module):
         losses = dict()
         losses1 = self.branch1.loss(preds, labels[0::2])
         losses2 = self.branch2.loss(preds, labels[1::2])
-        for k in losses1:
-            losses1[f'branch1.{k}'] *= alpha
-        for k in losses2:
-            losses2[f'branch2.{k}'] *= (1 - alpha)
-        losses.update(losses1)
-        losses.update(losses2)
+        for k, v in losses1.items():
+            losses[f'branch1.{k}'] = alpha * v
+        for k, v in losses2.items():
+            losses[f'branch2.{k}'] = (1 - alpha) * v
         self.scheduler.step()
         return losses

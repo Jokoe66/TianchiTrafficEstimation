@@ -106,9 +106,9 @@ class ClsORHead(nn.Module):
             losses[f'cls_head.{k}'] = v
         rank = preds[:, :-1]
         if cls_labels.sum().item():
-            rank_losses = self.or_head.loss(
+            or_losses = self.or_head.loss(
                 rank[cls_labels], labels[cls_labels])
-            for k, v in cls_losses.items():
+            for k, v in or_losses.items():
                 losses[f'or_head.{k}'] = v
         return losses
 

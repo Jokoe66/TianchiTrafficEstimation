@@ -73,12 +73,17 @@ classification models.
 
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
 |     :---:             | :---:| :---:| :---:| :---: | :--:  |
-|  Res50 + FT2 + K-rank | 0.91 | 0.23 | 0.66 | 0.99  | 0.734 |
-|  Res50 + FT2 + K-rank + BBN |      |      |      |       |       |
+|  Res50 + FT2 + 4-rank | 0.91 | 0.23 | 0.66 | 0.99  | 0.734 |
+|  Res50 + FT2 + 4-rank + BBN |      |      |      |       |       |
+|  Res50 + FT2 + 3-rank + 1-cls | 0.93 | 0.26 | 0.71 | 1.00  | 0.756 |
+|  Res50 + FT2 + 3-rank + 1-cls + BBN | 0.89 |0.19  | 0.52 | 0.99  | 0.679 |
 |  Res50 + FT2 + SORD   |      |      |      |       |       |
 
 NOTE:
 * By default, the oversampling strategy is adopted to handle imbalanced class distribution.
+* 3-rank + 1-cls denotes ranking the first 3 classes and classify the last single class.
+  The oridinal regression of the first 3 classes is conditioned on that the class is not the last
+  class.
 * [SORD](https://rauldiaz.github.io/pdfs/sord_cvpr_2019.pdf)
 
 #### Usage

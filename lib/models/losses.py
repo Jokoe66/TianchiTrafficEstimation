@@ -125,3 +125,47 @@ class BBNAccuracy(nn.Module):
                 + (1 - alpha) * self.acc(preds, labels2))
         self.scheduler.step()
         return acc
+
+
+@LOSSES.register_module()
+class BinaryLabelSmoothLoss(nn.Module):
+
+    def __init__(self,
+                 label_smooth_val,
+                 reduction='mean',
+                 loss_weight=1.0):
+        super(BinaryLabelSmoothLoss, self).__init__()
+        self.label_smooth_val = label_smooth_val
+        self.avg_smooth_val = self.label_smooth_val / 2
+        self.reduction = reduction
+        self.loss_weight = loss_weight
+
+    def forward(self,
+                cls_score,
+                label,
+                weight=None,
+                avg_factor=None,
+                reduction_override=None,
+                **kwargs):
+        assert reduction_override in (None, 'none', 'mean', 'sum')
+        reduction = (
+            reduction_override if reduction_override else self.reduction)
+
+        prob = torch.sigmoid(cls_score).view(-1, 1)
+        prob = torch.cat([1 - prob, prob], 1)
+
+        # # element-wise losses
+        one_hot = torch.zeros_like(prob)
+        one_hot.fill_(self.avg_smooth_val)
+        label = label.view(-1, 1).type(torch.long)
+        one_hot.scatter_(
+            1, label, 1 - self.label_smooth_val + self.avg_smooth_val)
+        loss = -torch.log(prob) * one_hot.detach()
+
+        # apply weights and do the reduction
+        if weight is not None:
+            weight = weight.float()
+        loss = weight_reduce_loss(
+            loss, weight=weight, reduction=reduction, avg_factor=avg_factor)
+        loss = self.loss_weight * loss
+        return loss

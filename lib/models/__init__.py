@@ -9,5 +9,5 @@ from .utils import *
 __all__ = ['Classifier', 'HRNetm', 'BBNLoss', 'PFFSeqNeck', 'PFFBPSeqNeck',
     'DPClsHead', 'BBDPClsHead', 'BBLSTMDPClsHead', 'EfficientNet', 'ORLoss',
     'SORDLoss', 'ClsORLoss', 'ClsORHead', 'MixupClassifier', 'BAccuracy',
-    'AlphaScheduler', 'BBNAccuracy',
+    'AlphaScheduler', 'BBNAccuracy', 'BinaryLabelSmoothLoss'
     ]

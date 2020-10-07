@@ -14,7 +14,7 @@ class DPClsHead(nn.Module):
                  dropout=0,
                  num_classes=1000,
                  loss=dict(type='CrossEntropyLoss'),
-                 acc=dict(type='Accuracy', topk=(1,))
+                 acc=dict(type='Accuracy', topk=(1,)),
                  ):
         super(DPClsHead, self).__init__()
         self.fc = torch.nn.Sequential(
@@ -30,8 +30,8 @@ class DPClsHead(nn.Module):
     def loss(self, preds, labels, **kwargs):
         loss = self.criterion(preds, labels)
         acc = self.acc(preds, labels)
-        return dict(loss_head=loss,
-                    acc=acc)
+        return {f'loss_cls': loss,
+                f'acc_cls': acc}
 
 
 @HEADS.register_module()
@@ -68,8 +68,8 @@ class DPORHead(nn.Module):
             targets[b, :labels[b]] = 1
         loss = self.criterion(preds, targets)
         acc = self.acc(preds, targets)
-        return dict(loss_head=loss,
-                    acc=acc)
+        return {'loss_or': loss,
+                'acc_or': acc}
 
 
 @HEADS.register_module()
@@ -78,6 +78,7 @@ class ClsORHead(nn.Module):
     def __init__(self,
                  cls_head,
                  or_head,
+                 **kwargs
                  ):
         super(ClsORHead, self).__init__()
         self.cls_head = build_head(cls_head)
@@ -94,21 +95,22 @@ class ClsORHead(nn.Module):
         return pred
 
     def loss(self, preds, labels, **kwargs):
+        losses = dict()
         logit = preds[:, -1]
-        cls_labels = (labels != preds.shape[1]).type(torch.float32)
-        losses = self.cls_head.loss(logit, cls_labels)
-        cls_loss = losses['loss_head']
-        cls_acc = losses['acc']
+        num_classes = preds.shape[1]
+        if isinstance(self.or_head, DPORHead):
+            num_classes += 1
+        cls_labels = (labels != num_classes - 1)
+        cls_losses = self.cls_head.loss(logit, cls_labels.type(torch.float32))
+        for k, v in cls_losses.items():
+            losses[f'cls_head.{k}'] = v
         rank = preds[:, :-1]
-        rank_losses = self.or_head.loss(rank, labels)
-        rank_loss = rank_losses['loss_head']
-        rank_acc = rank_losses['acc']
-        rank_loss = (rank_loss * cls_labels.unsqueeze(1)).mean()
-        loss = cls_loss + rank_loss
-        return dict(loss_head=loss,
-                    cls_acc=cls_acc,
-                    rank_acc=rank_acc,
-                    )
+        if cls_labels.sum().item():
+            rank_losses = self.or_head.loss(
+                rank[cls_labels], labels[cls_labels])
+            for k, v in cls_losses.items():
+                losses[f'or_head.{k}'] = v
+        return losses
 
 
 @HEADS.register_module()
@@ -117,6 +119,7 @@ class LSTMDPClsHead(nn.Module):
     def __init__(self,
                  lstm=None,
                  cls_head=None,
+                 **kwargs
                  ):
         super(LSTMDPClsHead, self).__init__()
         assert lstm is not None and cls_head is not None, \
@@ -130,10 +133,8 @@ class LSTMDPClsHead(nn.Module):
         return logit
 
     def loss(self, preds, labels, **kwargs):
-        loss = self.cls_head.loss(preds, labels)['loss_head']
-        acc = self.cls_head.acc(preds, labels)
-        return dict(loss_head=loss,
-                    acc=acc)
+        loss = self.cls_head.loss(preds, labels)
+        return loss
 
 
 @HEADS.register_module()
@@ -142,7 +143,8 @@ class BBHead(nn.Module):
     def __init__(self,
                  head,
                  alpha_scheduler=dict(max_steps=1716),
-                ):
+                 **kwargs
+                 ):
         super(BBHead, self).__init__()
         self.branch1 = build_head(head)
         self.branch2 = build_head(head)
@@ -163,13 +165,15 @@ class BBHead(nn.Module):
         return logit
 
     def loss(self, preds, labels, **kwargs):
-        losses1 = self.branch1.loss(preds, labels[0::2])
-        losses2 = self.branch2.loss(preds, labels[1::2])
         alpha = self.scheduler.alpha
         losses = dict()
+        losses1 = self.branch1.loss(preds, labels[0::2])
+        losses2 = self.branch2.loss(preds, labels[1::2])
         for k in losses1:
-            v = (alpha * losses1[k]
-                    + (1 - alpha) * losses2[k])
-            losses[k] = v
+            losses1[f'branch1.{k}'] *= alpha
+        for k in losses2:
+            losses2[f'branch2.{k}'] *= (1 - alpha)
+        losses.update(losses1)
+        losses.update(losses2)
         self.scheduler.step()
         return losses

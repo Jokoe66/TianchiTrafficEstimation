@@ -110,7 +110,7 @@ def train(self, dataloader, **kwargs):
             labels = labels.to(next(self.parameters()).device)
 
             losses = self(imgs, **data)
-            loss = sum(v for k, v in losses.items() if 'loss' in k)
+            loss, log_vars = self.module._parse_losses(losses)
             '''
             #acc = (preds.argmax(1) == labels).sum().item() / len(labels)
             all_labels = np.hstack([all_labels, labels.cpu().numpy()])
@@ -118,8 +118,8 @@ def train(self, dataloader, **kwargs):
                 preds.argmax(1).detach().cpu().numpy()])
             '''
             if rank == 0 and i % kwargs.get('log_iters', 5) == 0:
-                log_str = f' '.join(f'{k}: {v.item():.4f}'
-                                    for k, v in losses.items())
+                log_str = f' '.join(f'{k}: {v:.4f}'
+                                    for k, v in log_vars.items())
                 print(f'Epoch {epoch+1}/{max_epoch} '
                       f'Iter: {i+1}/{len(dataloader)} lr: {cur_lr} {log_str}')
             optimizer.zero_grad()

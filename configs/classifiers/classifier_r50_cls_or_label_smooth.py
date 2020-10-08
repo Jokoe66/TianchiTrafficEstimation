@@ -29,11 +29,12 @@ model = dict(
             type='DPClsHead',
             in_channel=128,
             dropout=0,
-            num_classes=1,
+            num_classes=2,
             loss=dict(
-                type='BinaryLabelSmoothLoss',
-                label_smooth_val=0.1),
-            acc=dict(type='BAccuracy')),
+                type='LabelSmoothLoss',
+                label_smooth_val=0.1,
+                num_classes=2),
+            acc=dict(type='Accuracy', topk=1)),
         or_head=dict(
             type='DPORHead',
             in_channel=128,
@@ -52,7 +53,6 @@ train_pipeline = [
     #dict(type='LoadImagesFromFile'),
     #dict(type='SeqRandomResizedCrop',
     #    size=(360, 640), scale=(0.5, 1), ratio=(1.5, 2)),
-    # TODO: Crop feat_mask
     dict(type='SeqResize', size=(360, 640)),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='PadSeq', seq_len_max=5, pad_value=0,

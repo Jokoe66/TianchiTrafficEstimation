@@ -18,10 +18,10 @@ model = dict(
             pool_c=256,
             flatten=False),
         feature_fusion=dict(
-            feat_mask_dim=0,
-            feat_vec_dim=0),
+            feat_mask_dim=2,
+            feat_vec_dim=10),
         lstm=dict(
-            in_channel=9*16*256,
+            in_channel=9*16*258+10,
             hidden_size=128)),
     head=dict(
         type='ClsORHead',
@@ -33,12 +33,14 @@ model = dict(
             loss=dict(type='CrossEntropyLoss'),
             acc=dict(type='Accuracy', topk=1)),
         or_head=dict(
-            type='DPClsHead',
+            type='DPORHead',
             in_channel=128,
             dropout=0,
             num_classes=3,
-            loss=dict(type='SORDLoss', beta=1.8),
-            acc=dict(type='Accuracy', topk=1)),
+            loss=dict(
+                type='BCEWithLogitsLoss',
+                reduction='none'),
+            acc=dict(type='BAccuracy')),
         cls_labels=[3],
         or_labels=[0, 1, 2]))
 
@@ -47,10 +49,11 @@ img_norm_cfg = dict(mean=[123.675, 116.28, 103.53],
                     to_rgb=True)
 train_pipeline = [
     #dict(type='LoadImagesFromFile'),
+    dict(type='AssignImgFields', keys=['imgs', 'feat_mask']),
     #dict(type='SeqRandomResizedCrop',
     #    size=(360, 640), scale=(0.5, 1), ratio=(1.5, 2)),
-    # TODO: Crop feat_mask
     dict(type='SeqResize', size=(360, 640)),
+    dict(type='SeqRandomFlip', flip_prob=0.5),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='PadSeq', seq_len_max=5, pad_value=0,
          keys=['imgs', 'feat_vector', 'feat_mask']),
@@ -61,6 +64,7 @@ train_pipeline = [
     ]
 test_pipeline = [
     #dict(type='LoadImagesFromFile'),
+    dict(type='AssignImgFields', keys=['imgs', 'feat_mask']),
     dict(type='SeqResize', size=(360, 640)),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='PadSeq', seq_len_max=5, pad_value=0,

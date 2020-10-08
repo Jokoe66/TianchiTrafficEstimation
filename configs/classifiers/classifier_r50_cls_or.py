@@ -29,9 +29,9 @@ model = dict(
             type='DPClsHead',
             in_channel=128,
             dropout=0,
-            num_classes=1,
-            loss=dict(type='BCEWithLogitsLoss'),
-            acc=dict(type='BAccuracy')),
+            num_classes=2,
+            loss=dict(type='CrossEntropyLoss'),
+            acc=dict(type='Accuracy', topk=1)),
         or_head=dict(
             type='DPORHead',
             in_channel=128,
@@ -40,7 +40,9 @@ model = dict(
             loss=dict(
                 type='BCEWithLogitsLoss',
                 reduction='none'),
-            acc=dict(type='BAccuracy'))))
+            acc=dict(type='BAccuracy')),
+        cls_labels=[3],
+        or_labels=[0,1,2]))
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53],
                     std=[58.395, 57.12, 57.375],
@@ -49,7 +51,6 @@ train_pipeline = [
     #dict(type='LoadImagesFromFile'),
     #dict(type='SeqRandomResizedCrop',
     #    size=(360, 640), scale=(0.5, 1), ratio=(1.5, 2)),
-    # TODO: Crop feat_mask
     dict(type='SeqResize', size=(360, 640)),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='PadSeq', seq_len_max=5, pad_value=0,

@@ -31,9 +31,9 @@ model = dict(
                 type='DPClsHead',
                 in_channel=128,
                 dropout=0,
-                num_classes=1,
-                loss=dict(type='BCEWithLogitsLoss'),
-                acc=dict(type='BAccuracy')),
+                num_classes=2,
+                loss=dict(type='CrossEntropyLoss'),
+                acc=dict(type='Accuracy', topk=1)),
             or_head=dict(
                 type='DPORHead',
                 in_channel=128,
@@ -42,7 +42,9 @@ model = dict(
                 loss=dict(
                     type='BCEWithLogitsLoss',
                     reduction='none'),
-                acc=dict(type='BAccuracy'))),
+                acc=dict(type='BAccuracy')),
+            cls_labels=[3],
+            or_labels=[0, 1, 2]),
         alpha_scheduler=dict(max_steps=1716)))
 
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53],

@@ -76,7 +76,11 @@ classification models.
 |  Res50 + FT2 + 4-rank | 0.91 | 0.23 | 0.66 | 0.99  | 0.734 |
 |  Res50 + FT2 + 4-rank + BBN |      |      |      |       |       |
 |  Res50 + FT2 + 3-rank + 1-cls | 0.93 | 0.26 | 0.71 | 1.00  | 0.756 |
+|  Res50 + FT2 + 3-rank + 1-cls + LS | 0.92 | 0.20 | 0.72 | 0.99  | 0.744 |
 |  Res50 + FT2 + 3-rank + 1-cls + BBN | 0.89 |0.19  | 0.52 | 0.99  | 0.679 |
+|  Res50 + FT2 + 3-rank + 1-cls + FF |      |      |      |       |       |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + RF | 0.92 | 0.31 | 0.71 | 1.00  | 0.764 |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + RF + RC|      |      |      |       |       |
 |  Res50 + FT2 + SORD   | 0.91 | 0.16 | 0.64 | 0.99  | 0.71  |
 |  Res50 + FT2 + SORD + 1-cls |      |      |      |       |       |
 |  Res50 + FT2 + SORD + BBN  |      |      |      |       |       |
@@ -86,6 +90,9 @@ NOTE:
 * 3-rank + 1-cls denotes ranking the first 3 classes and classify the last single class.
   The oridinal regression of the first 3 classes is conditioned on that the class is not the last
   class.
+* LS denotes label smooth. FF denotes feature fusion. RF denotes RandomFlip at training time.
+  RC denotes RandomResizedCrop at training time.
+
 * [SORD](https://rauldiaz.github.io/pdfs/sord_cvpr_2019.pdf)
 
 #### Usage

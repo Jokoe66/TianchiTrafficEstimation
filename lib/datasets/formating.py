@@ -19,3 +19,17 @@ class ImagesToTensor(object):
 
     def __repr__(self):
         return self.__class__.__name__ + f'(keys={self.keys})'
+
+
+@PIPELINES.register_module()
+class AssignImgFields(object):
+
+    def __init__(self, keys):
+        self.keys = keys
+
+    def __call__(self, results):
+        results['img_fields'] = self.keys
+        return results
+
+    def __repr__(self):
+        return self.__class__.__name__ + f'(keys={self.keys})'

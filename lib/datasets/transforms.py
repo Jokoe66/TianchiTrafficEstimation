@@ -159,10 +159,11 @@ class SeqRandomResizedCrop(object):
         Returns:
             ndarray: Randomly cropped and resized images.
         """
-        for key in results.get('img_fields', ['imgs']):
+        fields = results.get('img_fields', ['imgs'])
+        xmin, ymin, target_height, target_width = self.get_params(
+            results[fields][0], self.scale, self.ratio)
+        for key in fields:
             imgs = results[key]
-            xmin, ymin, target_height, target_width = self.get_params(
-                imgs[0], self.scale, self.ratio)
             for i in range(len(imgs)):
                 img = mmcv.imcrop(
                     imgs[i],
@@ -321,10 +322,9 @@ class SeqNormalize(object):
         self.to_rgb = to_rgb
 
     def __call__(self, results):
-        for key in results.get('img_fields', ['imgs']):
-            for i in range(len(results[key])):
-                results[key][i] = mmcv.imnormalize(results[key][i], self.mean, self.std,
-                                                   self.to_rgb)
+        for i in range(len(results['imgs'])):
+            results['imgs'][i] = mmcv.imnormalize(results['imgs'][i],
+                self.mean, self.std, self.to_rgb)
         results['img_norm_cfg'] = dict(
             mean=self.mean, std=self.std, to_rgb=self.to_rgb)
         return results

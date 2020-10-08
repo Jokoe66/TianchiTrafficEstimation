@@ -11,5 +11,5 @@ __all__ = [
     'ReversedSubSetSampler', 'DistributedReversedSubSetSampler',
     'CombinedSampler', 'PadSeq', 'StackSeq', 'SeqRandomResizedCrop',
     'SeqRandomFlip', 'SeqResize', 'SeqNormalize', 'ImagesToTensor',
-    'LoadImagesFromFile'
+    'LoadImagesFromFile', 'AssignImgFields'
     ]

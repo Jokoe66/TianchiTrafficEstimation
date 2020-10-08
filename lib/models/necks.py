@@ -58,7 +58,7 @@ class FF(nn.Module):
             "feat_mask should be not none when feat_mask_dim > 0"
         if self.feat_mask_dim:
             # n, h, w, c,( t)
-            feat_mask = feat_mask.to(next(self.parameters()))
+            feat_mask = feat_mask.to(feat.device).type_as(feat)
             if len(feat_mask.shape) == 4: # n, h, w, c
                 feat_mask = feat_mask.unsqueeze(-1) # n, h, w, 1
             assert feat_mask.shape[3] == self.feat_mask_dim, \
@@ -84,7 +84,7 @@ class FF(nn.Module):
             (self.feat_vec_dim > 0) ^ ('feat_vector' is None), \
             "feat_vector should not be None when feat_vec_dim > 0"
         if self.feat_vec_dim:
-            feat_vector = feat_vector.to(next(self.parameters())) # n, c, t
+            feat_vector = feat_vector.to(feat.device).type_as(feat) # n, c, t
             if len(feat_vector.shape) == 2: # n, c
                 feat_vector = feat_vector.unsqueeze(-1) # n, c, 1
             assert feat_vector.shape[1] == self.feat_vec_dim, \

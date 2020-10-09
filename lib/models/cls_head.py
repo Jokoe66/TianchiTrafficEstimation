@@ -121,18 +121,18 @@ class ClsORHead(nn.Module):
             pred[:, self.cls_labels] = prob[:, 1:]
             pred[:, self.or_labels] = rank
         else:
-            pred = rank, logit
+            pred = torch.cat([rank, logit], 1)
         return pred
 
     def loss(self, preds, labels, **kwargs):
         losses = dict()
-        logit = preds[1]
+        logit = preds[:, -self.cls_head.num_classes:]
         cls_labels = labels.new_tensor(
             [self.label2cls_label[label] for label in labels.tolist()])
         cls_losses = self.cls_head.loss(logit, cls_labels)
         for k, v in cls_losses.items():
             losses[f'cls_head.{k}'] = v
-        rank = preds[0]
+        rank = preds[:, :-self.cls_head.num_classes]
         or_labels = labels.new_tensor(
             [self.label2or_label[label] for label in labels.tolist()])
         or_mask = or_labels != -1

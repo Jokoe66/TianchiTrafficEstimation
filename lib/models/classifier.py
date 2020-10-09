@@ -41,16 +41,47 @@ class Classifier(torch.nn.Module):
         feat = self.neck(feat, **kwargs)
         return feat
 
-    def forward(self, input, **kwargs):
+    def forward(self, *args, **kwargs):
+        if self.training:
+            outputs = self.forward_train(*args, **kwargs)
+        else:
+            outputs = self.forward_test(*args, **kwargs)
+        return outputs
+
+    def forward_train(self, input, **kwargs):
         feat = self.extract_feat(input, **kwargs)
         logit = self.head(feat, **kwargs)
-        if self.training:
-            losses = dict()
-            loss_head = self.head.loss(logit, **kwargs)
-            losses.update(loss_head)
-            return losses
+        losses = dict()
+        loss_head = self.head.loss(logit, **kwargs)
+        losses.update(loss_head)
+        return losses
+
+    def forward_test(self, input, **kwargs):
+        if isinstance(input, torch.Tensor):
+            outputs = self.simple_test(input, **kwargs)
+        elif isinstance(input, list) and isinstance(input[0], torch.Tensor):
+            outputs = self.aug_test(input, **kwargs)
         else:
-            return logit
+            raise TypeError(
+                "Type of input must be torch.Tensor or list of Tensor)")
+        return outputs
+
+    def simple_test(self, input, **kwargs):
+        feat = self.extract_feat(input, **kwargs)
+        logit = self.head(feat, **kwargs)
+        return logit
+
+    def aug_test(self, inputs, **kwargs):
+        preds = []
+        single_kwargs = kwargs.copy()
+        for i in range(len(inputs)):
+            extra_fields = kwargs.get('extra_fields', [])
+            for field in extra_fields:
+                single_kwargs[field] = kwargs[field][i]
+            pred = self.simple_test(inputs[i], **single_kwargs)
+            preds.append(pred)
+        merged_pred = torch.stack(preds).mean(0)
+        return merged_pred
 
     def _parse_losses(self, losses):
         log_vars = OrderedDict()

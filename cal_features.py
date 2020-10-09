@@ -72,16 +72,17 @@ training_set = ImageSequenceDataset(
     img_root=args.img_root,
     ann_file=args.ann_file,
     split=args.split,
-    transform=transforms.Compose([
-        lambda x:mmcv.imresize(x, (1280, 720)),
-        lambda x:torch.tensor(x),
-    ]),
+    transform=[
+        dict(
+            type='SeqResize',
+            size=(720, 1280)),
+        ],
     key_frame_only=False)
 enriched_annotations = [] #输出数据集
 for idx in tqdm.tqdm(range(len(training_set))):
     data = training_set[idx]
     ann = training_set.anns[idx]
-    img_seq = data['imgs'].numpy().transpose(3, 0, 1, 2)
+    img_seq = data['imgs']
     ann['feats'] = dict(closest_vehicle_distance=[],
                         main_lane_vehicles=[],
                         total_vehicles=[],
@@ -96,7 +97,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
                         vehicle_depth_mean=[],
                         vehicle_depth_std=[],
                         )
-    for i in range(data['len_seq']):
+    for i in range(len(img_seq)):
         ann['frames'][i]['feats'] = dict()
         img = img_seq[i]
         h, w = img.shape[:2]

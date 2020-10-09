@@ -1,4 +1,5 @@
 import os
+import random
 from collections import defaultdict
 import argparse
 import sys
@@ -208,6 +209,7 @@ if __name__ == '__main__':
         torch.manual_seed(666)
         torch.cuda.manual_seed_all(666)
         np.random.seed(666)
+        random.seed(666)
         bs = args.samples_per_gpu
         samplers = [
             DistributedSubsetSampler(train_inds),

@@ -7,6 +7,13 @@ import mmcv
 import numpy as np
 from mmcls.datasets.builder import PIPELINES
 
+try:
+    import albumentations
+    from albumentations import Compose
+except ImportError:
+    albumentations = None
+    Compose = None
+
 @PIPELINES.register_module()
 class PadSeq(object):
     """Pad sequence.
@@ -334,4 +341,188 @@ class SeqNormalize(object):
         repr_str += f'(mean={list(self.mean)}, '
         repr_str += f'std={list(self.std)}, '
         repr_str += f'to_rgb={self.to_rgb})'
+        return repr_str
+
+
+@PIPELINES.register_module()
+class UnpackSequence(object):
+    """ Unpack a field(s) containing a list to multiple fields.
+    Args:
+        key(str): names of fields to unpack
+        num_fields(int): number of fields after unpack
+
+    Return:
+        dict: results with unpacked fields
+    """
+
+    def __init__(self, keys=None, num_fields=None):
+        self.keys = keys
+        self.num_fields = num_fields
+
+    def __call__(self, results):
+        if self.keys is None:
+            return results
+        for key in self.keys:
+            if key not in results: continue
+            data = results[key]
+            if not isinstance(data, list):
+                data = [data]
+            for i, d in enumerate(data):
+                results[f'{key}{i}'] = d
+            for i in range(len(data), self.num_fields):
+                results[f'{key}{i}'] = None
+            results.pop(key)
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(keys={self.keys}, num_fields={self.num_fields})'
+        return repr_str
+
+
+@PIPELINES.register_module()
+class PackSequence(object):
+    """ Pack multiple fields into a single field of list.
+    Args:
+        keys(list[str]): prefix names of fields to pack
+
+    Return:
+        dict: results with the packed field
+    """
+
+    def __init__(self, keys=None):
+        self.keys = keys
+
+    def __call__(self, results):
+        if self.keys is None:
+            return results
+        for key in self.keys:
+            ks = []
+            for k in results:
+                if k.startswith(key):
+                    ks.append(k)
+            ks.sort()
+            if len(ks) == 0: continue
+            results[key] = []
+            for k in ks:
+                if results[k] is None: continue
+                results[key].append(results[k])
+                results.pop(k)
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(keys={self.keys})'
+        return repr_str
+
+
+@PIPELINES.register_module()
+class Albumentation(object):
+    """Albumentation augmentation.
+    Adds custom transformations from Albumentations library.
+    Please, visit `https://albumentations.readthedocs.io`
+    to get more information.
+    An example of ``transforms`` is as followed:
+    .. code-block::
+        [
+            dict(
+                type='ShiftScaleRotate',
+                shift_limit=0.0625,
+                scale_limit=0.0,
+                rotate_limit=0,
+                interpolation=1,
+                p=0.5),
+            dict(
+                type='RandomBrightnessContrast',
+                brightness_limit=[0.1, 0.3],
+                contrast_limit=[0.1, 0.3],
+                p=0.2),
+            dict(type='ChannelShuffle', p=0.1),
+            dict(
+                type='OneOf',
+                transforms=[
+                    dict(type='Blur', blur_limit=3, p=1.0),
+                    dict(type='MedianBlur', blur_limit=3, p=1.0)
+                ],
+                p=0.1),
+        ]
+    Args:
+        transforms (list[dict]): A list of albu transformations
+        additional_targets (dict): Contains {target key: type}
+        keymap (dict): Contains {'input key':'albumentation-style key'}
+    """
+
+    def __init__(self, transforms, additional_targets=None, keymap=None):
+        if Compose is None:
+            raise RuntimeError('albumentations is not installed')
+
+        self.transforms = transforms
+        self.aug = Compose([self.albu_builder(t) for t in self.transforms],
+                           additional_targets=additional_targets)
+        if not keymap:
+            self.keymap_to_albu = {
+                'imgs': 'image',
+            }
+        else:
+            self.keymap_to_albu = keymap
+        self.keymap_back = {v: k for k, v in self.keymap_to_albu.items()}
+
+    @staticmethod
+    def mapper(d, keymap):
+        """Dictionary mapper. Renames keys according to keymap provided.
+        Args:
+            d (dict): old dict
+            keymap (dict): {'old_key':'new_key'}
+        Returns:
+            dict: new dict.
+        """
+
+        updated_dict = {}
+        for k, v in zip(d.keys(), d.values()):
+            new_k = keymap.get(k, k)
+            updated_dict[new_k] = d[k]
+        return updated_dict
+
+    def albu_builder(self, cfg):
+        """Import a module from albumentations.
+        It inherits some of :func:`build_from_cfg` logic.
+        Args:
+            cfg (dict): Config dict. It should at least contain the key "type".
+        Returns:
+            obj: The constructed object.
+        """
+
+        assert isinstance(cfg, dict) and 'type' in cfg
+        args = cfg.copy()
+
+        obj_type = args.pop('type')
+        if mmcv.is_str(obj_type):
+            if albumentations is None:
+                raise RuntimeError('albumentations is not installed')
+            obj_cls = getattr(albumentations, obj_type)
+        elif inspect.isclass(obj_type):
+            obj_cls = obj_type
+        else:
+            raise TypeError(
+                f'type must be a str or valid type, but got {type(obj_type)}')
+
+        if 'transforms' in args:
+            args['transforms'] = [
+                self.albu_builder(transform)
+                for transform in args['transforms']
+            ]
+        return obj_cls(**args)
+
+    def __call__(self, results):
+        # dict to albumentations format
+        results = self.mapper(results, self.keymap_to_albu)
+        
+        results = self.aug(**results)
+        
+        # back to the original format
+        results = self.mapper(results, self.keymap_back)
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__ + f'(transforms={self.transforms})'
         return repr_str

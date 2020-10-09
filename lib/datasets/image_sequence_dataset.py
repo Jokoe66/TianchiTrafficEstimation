@@ -125,14 +125,14 @@ class ImageSequenceDataset(Dataset):
             seq_feats = self.gen_feat_vector(ann.get('feats'),
                 seq_len=len(ann['frames']), check=False)
             results['feat_vector'] = seq_feats[key_idx]
-            results['key'] = 0
+            results['keys'] = 0
             return dict(**results)
 
         for i, frame in enumerate(ann['frames']):
             assert int(frame['frame_name'][0]) == i + 1, \
                 f'{frame["frame_name"]} is not {i+1}th frame'
             if frame['frame_name'] == ann['key_frame']:
-                results['key'] = i
+                results['keys'] = i
             img = mmcv.imread(
                 os.path.join(results['img_prefix'], frame['frame_name']))
             results['imgs'].append(img)

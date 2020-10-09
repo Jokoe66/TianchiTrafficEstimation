@@ -144,6 +144,32 @@ class ClsORHead(nn.Module):
 
 
 @HEADS.register_module()
+class LSTMClsORHead(ClsORHead):
+
+    def __init__(self, lstm, *args, **kwargs):
+        super(LSTMClsORHead, self).__init__(*args, **kwargs)
+        self.lstm = Seq(**lstm)
+
+    def forward(self, feat, **kwargs):
+        feat = self.lstm(feat, **kwargs)
+        return super(LSTMClsORHead, self).forward(feat, **kwargs)
+
+
+@HEADS.register_module()
+class KeyFrameClsORHead(ClsORHead):
+
+    def forward(self, feat, keys, seq_len_max=5, **kwargs):
+        feat = feat.view(
+            seq_len_max, len(feat) // seq_len_max, *feat.shape[1:])
+        batch_inds = torch.arange(feat.shape[1]).type(torch.long)
+        assert keys.shape[0] == feat.shape[1]
+        key_feat = feat[keys.type(torch.long), batch_inds] # N, C, H, W
+        key_feat = key_feat.view(len(key_feat), -1)
+        assert key_feat.shape[0] == feat.shape[1]
+        return super(KeyFrameClsORHead, self).forward(key_feat, **kwargs)
+
+
+@HEADS.register_module()
 class LSTMDPClsHead(nn.Module):
 
     def __init__(self,
@@ -204,4 +230,42 @@ class BBHead(nn.Module):
         for k, v in losses2.items():
             losses[f'branch2.{k}'] = (1 - alpha) * v
         self.scheduler.step()
+        return losses
+
+
+@HEADS.register_module()
+class MultiClsHead(nn.Module):
+
+    def __init__(self,
+                 heads,
+                 weights=None,
+                 **kwargs
+                 ):
+        super(MultiClsHead, self).__init__()
+        self.heads = nn.ModuleList()
+        for h in heads:
+            self.heads.append(build_head(h))
+        if weights is None or isinstance(weights, (int, float)):
+            weights = [1. / len(heads)] * len(heads)
+        assert len(weights) == len(heads), \
+            (f"The length of weights({len(weights)}) must match"
+             f"that of heads({len(heads)}).")
+        self.register_buffer('weights', torch.tensor(weights))
+
+    def forward(self, feat, **kwargs):
+        preds = []
+        for head in self.heads:
+            logit = head(feat, **kwargs)
+            preds.append(logit)
+        preds = torch.stack(preds, -1)
+        merged_preds = (self.weights * preds).sum(-1)
+        return merged_preds
+
+    def loss(self, preds, labels, **kwargs):
+        losses = dict()
+        for i, head in enumerate(self.heads):
+            losses1 = head.loss(preds, labels)
+            for k, v in losses1.items():
+                w = self.weights[i] if 'loss' in k else 1.
+                losses[f'head{i}.{k}'] = w * v
         return losses

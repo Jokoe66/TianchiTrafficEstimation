@@ -79,10 +79,10 @@ classification models.
 |  Res50 + FT2 + 3-rank + 1-cls | 0.93 | 0.26 | 0.71 | 1.00  | 0.756 |
 |  Res50 + FT2 + 3-rank + 1-cls + LS | 0.92 | 0.20 | 0.72 | 0.99  | 0.744 |
 |  Res50 + FT2 + 3-rank + 1-cls + BBN | 0.89 |0.19  | 0.52 | 0.99  | 0.679 |
-|  Res50 + FT2 + 3-rank + 1-cls + FF |      |      |      |       | 0     |
+|  Res50 + FT2 + 3-rank + 1-cls + FF | 0.93 | 0.29 | 0.71 | 1.00  | 0.764 |
 |(out-dated)Res50 + FT2 + 3-rank + 1-cls + FF + RF | 0.92 | 0.31 | 0.71 | 1.00  | 0.764 |
 |  Res50 + FT2 + 3-rank + 1-cls + RF + RC | 0.84 | 0.25 | 0.63 | 0.91  | 0.685 |
-|  Res50 + FT2 + 3-rank + 1-cls + aug |      |      |      |       |       |
+|  Res50 + FT2 + 3-rank + 1-cls + aug | 0.91 | 0.25 | 0.73 | 0.99  | 0.759 |
 |  Res50 + FT2 + 3-rank + 1-cls + FF + aug |      |      |      |       |       |
 |  Res50 + FT2 + SORD   | 0.91 | 0.16 | 0.64 | 0.99  | 0.710 |
 |  Res50 + FT2 + SORD + 1-cls | 0.92 | 0.20 | 0.66 | 0.99  | 0.726 |
@@ -96,6 +96,16 @@ NOTE:
 * LS denotes label smooth. FF denotes feature fusion. RF denotes RandomFlip at training time.
   RC denotes RandomResizedCrop at training time.
 * [SORD](https://rauldiaz.github.io/pdfs/sord_cvpr_2019.pdf)
+
+
+#### Sequence and Key Frame Joint Classification 
+|    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
+|     :---:             | :---:| :---:| :---:| :---: | :--:  |
+|    Baseline           |      |      |      |       |       |
+
+NOTE:
+* Baseline model comprises r50 backbone, FF neck and double 3-rank+1cls head for sequence
+  classification and key frame classification respectively.
 
 #### Usage
 在运行之前需要把mmclassification安装到环境中:

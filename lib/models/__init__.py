@@ -6,8 +6,10 @@ from .cls_head import *
 from .efficientnet.efficientnet import *
 from .utils import *
 
-__all__ = ['Classifier', 'HRNetm', 'BBNLoss', 'PFFSeqNeck', 'PFFBPSeqNeck',
-    'DPClsHead', 'BBDPClsHead', 'BBLSTMDPClsHead', 'EfficientNet', 'ORLoss',
-    'SORDLoss', 'ClsORLoss', 'ClsORHead', 'MixupClassifier', 'BAccuracy',
-    'AlphaScheduler', 'BBNAccuracy', 'BinaryLabelSmoothLoss'
+__all__ = ['Classifier', 'MixupClassifier', 'HRNetm', 'EfficientNet',
+    'PFFSeqNeck', 'PFFBPSeqNeck', 'SequentialNecks',
+    'DPClsHead', 'ClsORHead', 'LSTMClsORHead', 'KeyFrameClsORHead',
+    'MultiClsHead',
+    'ORLoss', 'SORDLoss', 'ClsORLoss', 'BAccuracy', 'BBNLoss',
+    'BBNAccuracy', 'BinaryLabelSmoothLoss', 'AlphaScheduler',
     ]

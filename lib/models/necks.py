@@ -2,6 +2,19 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mmcls.models.builder import NECKS
+from mmcls.models import build_neck
+
+@NECKS.register_module()
+class SequentialNecks(nn.Sequential):
+
+    def __init__(self, necks):
+        necks = [build_neck(neck) for neck in necks]
+        super(SequentialNecks, self).__init__(*necks)
+
+    def forward(self, input, **kwargs):
+        for module in self:
+            input = module(input, **kwargs)
+        return input
 
 
 @NECKS.register_module()
@@ -32,6 +45,7 @@ class Pool(nn.Module):
         return feat
 
 
+@NECKS.register_module()
 class FF(nn.Module):
     """ Feature Fusion Module.
 
@@ -62,7 +76,7 @@ class FF(nn.Module):
             if len(feat_mask.shape) == 4: # n, h, w, c
                 feat_mask = feat_mask.unsqueeze(-1) # n, h, w, 1
             assert feat_mask.shape[3] == self.feat_mask_dim, \
-                (f"feat_maskk.shape[3]({feat_mask.shape[3]}) != "
+                (f"feat_mask.shape[3]({feat_mask.shape[3]}) != "
                  f"self.feat_mask_dim({self.feat_mask_dim}).")
             feat_mask = feat_mask.permute(4,0,3,1,2).contiguous() # t, n, c, h, w
             # txn, c, h, w
@@ -105,6 +119,7 @@ class FF(nn.Module):
                 f'feat_vec_dim={self.feat_vec_dim}')
 
 
+@NECKS.register_module()
 class Seq(nn.Module):
 
     def __init__(self, in_channel, hidden_size):
@@ -129,6 +144,7 @@ class Seq(nn.Module):
         return feat
 
 
+@NECKS.register_module()
 class BilinearPooling(nn.Module):
 
     def forward(self, feat):

@@ -167,7 +167,7 @@ for idx in tqdm.tqdm(range(len(training_set))):
             img_to_show.save(os.path.join(debug_dir,
                 f"{ann['id']}-{i + 1}.jpg"))
         ##找最小线
-        vehicles = box_result
+        vehicles = box_result.copy()
 
         bottom_centers = vehicles[:, 2:4] # bottom-right points
         bottom_centers[:, 0] -= 0.5 * (vehicles[:, 2] - vehicles[:, 0])

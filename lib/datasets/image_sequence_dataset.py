@@ -60,11 +60,13 @@ class ImageSequenceDataset(Dataset):
             return mask
         for key, feat in feats.items():
             if keys and key not in keys: continue
+            feat[:, 2:4] -= feat[:, :2]
             rles = mask_utils.frBbox(feat.astype('float64'), h, w)
             if len(rles):
                 _mask = mask_utils.decode([mask_utils.merge(rles)]).astype(float)
             else:
                 _mask = np.zeros((h, w, 1)).astype('float')
+            feat[:, 2:4] += feat[:, :2]
             for box in feat:
                 l, t, r, b, c = box
                 l, t, r, b = list(map(int, [l, t, r, b]))

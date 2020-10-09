@@ -123,7 +123,7 @@ class ImageSequenceDataset(Dataset):
                 ann['frames'][key_idx].get('feats'),
                 *img.shape[:2], keys=['vehicles', 'obstacles'])
             seq_feats = self.gen_feat_vector(ann.get('feats'),
-                seq_len=len(ann['frames']), check=True)
+                seq_len=len(ann['frames']), check=False)
             results['feat_vector'] = seq_feats[key_idx]
             results['key'] = 0
             return dict(**results)
@@ -140,7 +140,7 @@ class ImageSequenceDataset(Dataset):
                 self.gen_feat_mask(frame.get('feats'), *img.shape[:2],
                                    keys=['vehicles', 'obstacles']))
         seq_feats = self.gen_feat_vector(ann.get('feats'),
-            seq_len=len(ann['frames']), check=True)
+            seq_len=len(ann['frames']), check=False)
         results['feat_vector'] = seq_feats
         return dict(**results)
 

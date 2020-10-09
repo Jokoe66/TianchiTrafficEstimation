@@ -122,7 +122,7 @@ train_pipeline = [
     dict(type='ImagesToTensor', keys=['imgs']),
     dict(type='StackSeq', keys=['imgs', 'feat_vector', 'feat_mask']),
     dict(type='Collect',
-         keys=['imgs', 'labels', 'seq_len'])
+         keys=['imgs', 'feat_mask', 'feat_vector', 'labels', 'seq_len'])
     ]
 test_pipeline = [
     #dict(type='LoadImagesFromFile'),
@@ -134,6 +134,6 @@ test_pipeline = [
     dict(type='ImagesToTensor', keys=['imgs']),
     dict(type='StackSeq', keys=['imgs', 'feat_vector', 'feat_mask']),
     dict(type='Collect',
-         keys=['imgs', 'labels', 'seq_len'])
+         keys=['imgs', 'feat_mask', 'feat_vector', 'labels', 'seq_len'])
     ]
 load_from = None

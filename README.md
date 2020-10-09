@@ -75,14 +75,17 @@ classification models.
 |     :---:             | :---:| :---:| :---:| :---: | :--:  |
 |  Res50 + FT2 + 4-rank | 0.91 | 0.23 | 0.66 | 0.99  | 0.734 |
 |  Res50 + FT2 + 4-rank + BBN |      |      |      |       |       |
+|  Res50 + FT2 + 2-rank + 2-cls | 0.92 | 0.09 | 0.73 | 0.99  | 0.727 |
 |  Res50 + FT2 + 3-rank + 1-cls | 0.93 | 0.26 | 0.71 | 1.00  | 0.756 |
 |  Res50 + FT2 + 3-rank + 1-cls + LS | 0.92 | 0.20 | 0.72 | 0.99  | 0.744 |
 |  Res50 + FT2 + 3-rank + 1-cls + BBN | 0.89 |0.19  | 0.52 | 0.99  | 0.679 |
-|  Res50 + FT2 + 3-rank + 1-cls + FF |      |      |      |       |       |
-|  Res50 + FT2 + 3-rank + 1-cls + FF + RF | 0.92 | 0.31 | 0.71 | 1.00  | 0.764 |
-|  Res50 + FT2 + 3-rank + 1-cls + FF + RF + RC|      |      |      |       |       |
-|  Res50 + FT2 + SORD   | 0.91 | 0.16 | 0.64 | 0.99  | 0.71  |
-|  Res50 + FT2 + SORD + 1-cls |      |      |      |       |       |
+|  Res50 + FT2 + 3-rank + 1-cls + FF |      |      |      |       | 0     |
+|(out-dated)Res50 + FT2 + 3-rank + 1-cls + FF + RF | 0.92 | 0.31 | 0.71 | 1.00  | 0.764 |
+|  Res50 + FT2 + 3-rank + 1-cls + RF + RC | 0.84 | 0.25 | 0.63 | 0.91  | 0.685 |
+|  Res50 + FT2 + 3-rank + 1-cls + aug |      |      |      |       |       |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + aug |      |      |      |       |       |
+|  Res50 + FT2 + SORD   | 0.91 | 0.16 | 0.64 | 0.99  | 0.710 |
+|  Res50 + FT2 + SORD + 1-cls | 0.92 | 0.20 | 0.66 | 0.99  | 0.726 |
 |  Res50 + FT2 + SORD + BBN  |      |      |      |       |       |
 
 NOTE:
@@ -92,7 +95,6 @@ NOTE:
   class.
 * LS denotes label smooth. FF denotes feature fusion. RF denotes RandomFlip at training time.
   RC denotes RandomResizedCrop at training time.
-
 * [SORD](https://rauldiaz.github.io/pdfs/sord_cvpr_2019.pdf)
 
 #### Usage

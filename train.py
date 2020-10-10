@@ -34,17 +34,9 @@ def eval(model, dataloader, **kwargs):
     if rank == 0:
         progress_bar = mmcv.ProgressBar(len(dataloader))
     for data in dataloader:
-        imgs = data['imgs']
-        if len(imgs.shape) > 4: # frames
-            seq_len_max = imgs.shape[-1]
-            imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
-                .view(-1, *imgs.shape[1:4]))
-        else:
-            seq_len_max = 1
-        data['seq_len_max'] = seq_len_max
+        imgs = data.pop('imgs')
         labels = data['labels']
 
-        imgs = imgs.to(next(self.parameters()).device)
         labels = labels.to(next(self.parameters()).device)
 
         with torch.no_grad():
@@ -97,17 +89,9 @@ def train(self, dataloader, **kwargs):
         #all_labels = np.empty((0,))
         dataloader.sampler.set_epoch(epoch)
         for i, data in enumerate(dataloader):
-            imgs = data['imgs']
-            if len(imgs.shape) > 4: # frames
-                seq_len_max = imgs.shape[-1]
-                imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
-                        .view(-1, *imgs.shape[1:4]))
-            else:
-                seq_len_max = 1
-            data['seq_len_max'] = seq_len_max
+            imgs = data.pop('imgs')
             labels = data['labels']
 
-            imgs = imgs.to(next(self.parameters()).device)
             labels = labels.to(next(self.parameters()).device)
 
             losses = self(imgs, **data)
@@ -225,7 +209,7 @@ if __name__ == '__main__':
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[args.local_rank], find_unused_parameters=True)
         if cfg.load_from:
-            load_checkpoint(model, cfg.load_from)
+            load_checkpoint(model, cfg.load_from, map_location='cpu')
         output = train(model, train_loader,
             val_dataloader=val_loader,
             log_iters=10,

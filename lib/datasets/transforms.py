@@ -3,6 +3,7 @@ import math
 import random
 
 import torch
+from torch.nn.modules.utils import _pair
 import mmcv
 import numpy as np
 from mmcls.datasets.builder import PIPELINES
@@ -168,15 +169,15 @@ class SeqRandomResizedCrop(object):
         """
         fields = results.get('img_fields', ['imgs'])
         xmin, ymin, target_height, target_width = self.get_params(
-            results[fields][0], self.scale, self.ratio)
+            results['imgs'][0], self.scale, self.ratio)
         for key in fields:
             imgs = results[key]
             for i in range(len(imgs)):
                 img = mmcv.imcrop(
                     imgs[i],
                     np.array([
-                        ymin, xmin, ymin + target_width - 1,
-                        xmin + target_height - 1
+                        xmin, ymin, xmin + target_width - 1,
+                        ymin + target_height - 1
                     ]))
                 results[key][i] = mmcv.imresize(
                     img,
@@ -201,13 +202,16 @@ class SeqRandomFlip(object):
         flip_prob (float): probability of the image being flipped. Default: 0.5
         direction (str, optional): The flipping direction. Options are
             'horizontal' and 'vertical'. Default: 'horizontal'.
+        extend (bool): whether to append the flipped images to results or replace
+            the original images.
     """
 
-    def __init__(self, flip_prob=0.5, direction='horizontal'):
+    def __init__(self, flip_prob=0.5, direction='horizontal', extend=False):
         assert 0 <= flip_prob <= 1
         assert direction in ['horizontal', 'vertical']
         self.flip_prob = flip_prob
         self.direction = direction
+        self.extend = extend
 
     def __call__(self, results):
         """Call function to flip image.
@@ -222,10 +226,21 @@ class SeqRandomFlip(object):
         results['flip_direction'] = self.direction
         if results['flip']:
             # flip image
-            for key in results.get('img_fields', ['imgs']):
+            img_fields = results.get('img_fields', ['imgs'])
+            append_fields = []
+            for key in img_fields:
+                flipped_images = []
                 for i in range(len(results[key])):
-                    results[key][i] = mmcv.imflip(
+                    flipped_img = mmcv.imflip(
                         results[key][i], direction=results['flip_direction'])
+                    flipped_images.append(flipped_img)
+                if self.extend:
+                    results[f'{key}_flipped'] = flipped_images
+                    append_fields.append(f'{key}_flipped')
+                else:
+                    results[key] = flipped_images
+            if self.extend:
+                img_fields.extend(append_fields)
         return results
 
     def __repr__(self):
@@ -403,6 +418,9 @@ class PackSequence(object):
                     ks.append(k)
             ks.sort()
             if len(ks) == 0: continue
+            if len(ks) == 1:
+                results[key] = results.pop(ks[0])
+                continue
             results[key] = []
             for k in ks:
                 if results[k] is None: continue
@@ -413,6 +431,149 @@ class PackSequence(object):
     def __repr__(self):
         repr_str = self.__class__.__name__
         repr_str += f'(keys={self.keys})'
+        return repr_str
+
+
+@PIPELINES.register_module()
+class MultiScaleCrop(object):
+    """Crop images with a list of randomly selected scales.
+    Randomly select the w and h scales from a list of scales. Scale of 1 means
+    the base size, which is the minimal of image weight and height. The scale
+    level of w and h is controlled to be smaller than a certain value to
+    prevent too large or small aspect ratio.
+    Required keys are "imgs", "img_shape", added or modified keys are "imgs",
+    "crop_bbox", "img_shape", "lazy" and "scales". Required keys in "lazy" are
+    "crop_bbox", added or modified key is "crop_bbox".
+    Args:
+        size (int | tuple[int]): (w, h) of network input.
+        scales (tuple[float]): Weight and height scales to be selected.
+        max_wh_scale_gap (int): Maximum gap of w and h scale levels.
+            Default: 1.
+        random_crop (bool): If set to True, the cropping bbox will be randomly
+            sampled, otherwise it will be sampler from fixed regions.
+            Default: False.
+        num_fixed_crops (int): If set to 5, the cropping bbox will keep 5
+            basic fixed regions: "upper left", "upper right", "lower left",
+            "lower right", "center".If set to 13, the cropping bbox will append
+            another 8 fix regions: "center left", "center right",
+            "lower center", "upper center", "upper left quarter",
+            "upper right quarter", "lower left quarter", "lower right quarter".
+            Default: 5.
+        crop_all (bool): whether output all fixed crops. Only valid when random_crop is False.
+        interpolation (str): Interpolation method, accepted values are
+            'nearest', 'bilinear', 'bicubic', 'area', 'lanczos'. Default:
+            'bilinear'.
+        backend (str): The image resize backend type, accpeted values are
+            `cv2` and `pillow`. Default: `cv2`.
+    """
+
+    def __init__(self,
+                 size,
+                 scales=(1, ),
+                 max_wh_scale_gap=1,
+                 random_crop=False,
+                 num_fixed_crops=5,
+                 crop_all=True,
+                 interpolation='bilinear',
+                 backend='cv2'):
+        self.size = size
+        if not mmcv.is_tuple_of(self.size, int):
+            raise TypeError(f'Input_size must be int or tuple of int, '
+                            f'but got {type(size)}')
+
+        if not isinstance(scales, tuple):
+            raise TypeError(f'Scales must be tuple, but got {type(scales)}')
+
+        if num_fixed_crops not in [5, 13]:
+            raise ValueError(f'Num_fix_crops must be in {[5, 13]}, '
+                             f'but got {num_fixed_crops}')
+
+        self.scales = scales
+        self.max_wh_scale_gap = max_wh_scale_gap
+        self.random_crop = random_crop
+        self.num_fixed_crops = num_fixed_crops
+        self.crop_all = crop_all
+        self.interpolation = interpolation
+        self.backend = backend
+
+    def __call__(self, results):
+        """Performs the MultiScaleCrop augmentation.
+        Args:
+            results (dict): The resulting dict to be modified and passed
+                to the next transform in pipeline.
+        """
+
+        img_h, img_w = results['imgs'][0].shape[:2]
+        crop_sizes = [(img_w * s, img_h * s) for s in self.scales]
+
+        crop_w, crop_h = random.choice(crop_sizes)
+
+        if self.random_crop:
+            x_offsets = [random.randint(0, img_w - crop_w)]
+            y_offsets = [random.randint(0, img_h - crop_h)]
+        else:
+            w_step = (img_w - crop_w) // 4
+            h_step = (img_h - crop_h) // 4
+            candidate_offsets = [
+                (0, 0),  # upper left
+                (4 * w_step, 0),  # upper right
+                (0, 4 * h_step),  # lower left
+                (4 * w_step, 4 * h_step),  # lower right
+                (2 * w_step, 2 * h_step),  # center
+            ]
+            if self.num_fixed_crops == 13:
+                extra_candidate_offsets = [
+                    (0, 2 * h_step),  # center left
+                    (4 * w_step, 2 * h_step),  # center right
+                    (2 * w_step, 4 * h_step),  # lower center
+                    (2 * w_step, 0 * h_step),  # upper center
+                    (1 * w_step, 1 * h_step),  # upper left quarter
+                    (3 * w_step, 1 * h_step),  # upper right quarter
+                    (1 * w_step, 3 * h_step),  # lower left quarter
+                    (3 * w_step, 3 * h_step)  # lower right quarter
+                ]
+                candidate_offsets.extend(extra_candidate_offsets)
+            if not self.crop_all:
+                x_offset, y_offset = random.choice(candidate_offsets)
+                x_offsets = [x_offset]
+                y_offsets = [y_offset]
+            else:
+                x_offsets = [_[0] for _ in candidate_offsets]
+                y_offsets = [_[1] for _ in candidate_offsets]
+
+        fields = results.get('img_fields', ['imgs'])
+        append_fields = []
+        for key in fields:
+            imgs = results.pop(key)
+            for j in range(len(x_offsets)):
+                xmin = x_offsets[j]
+                ymin = y_offsets[j]
+                results[f'{key}{j}'] = []
+                append_fields.append(f'{key}{j}')
+                for i in range(len(imgs)):
+                    img = mmcv.imcrop(
+                        imgs[i],
+                        np.array([
+                            xmin, ymin, xmin + crop_w - 1,
+                            ymin + crop_h - 1
+                        ]))
+                    img = mmcv.imresize(
+                        img,
+                        tuple(self.size[::-1]),
+                        interpolation=self.interpolation,
+                        backend=self.backend)
+                    results[f'{key}{j}'] += [img]
+        fields.extend(append_fields)
+        return results
+
+    def __repr__(self):
+        repr_str = (f'{self.__class__.__name__}('
+                    f'size={self.size}, scales={self.scales}, '
+                    f'random_crop={self.random_crop}, '
+                    f'num_fixed_crops={self.num_fixed_crops}, '
+                    f'crop_all={self.crop_all}, '
+                    f'interpolation="{self.interpolation}", '
+                    f'backend="{self.backend}")')
         return repr_str
 
 

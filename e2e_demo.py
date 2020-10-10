@@ -24,7 +24,7 @@ class Ensemble(torch.nn.Module):
         preds = []
         for model in self.models:
             pred = model(*args, **kwargs)
-            if (pred.sum(1) != 1).any():
+            if ((pred.sum(1) - 1) > 1e-4).any():
                 pred = F.softmax(pred, 1)
             preds.append(pred)
         preds = torch.stack(preds, 0)
@@ -69,15 +69,6 @@ if __name__ == '__main__':
     self.eval()
     results = dict() # id: pred
     for ind, data in enumerate(tqdm.tqdm(test_loader)):
-        imgs = data['imgs']
-        if len(imgs.shape) > 4: # frames
-            seq_len_max = imgs.shape[-1]
-            imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
-                .view(-1, *imgs.shape[1:4])) # t, c, h, w
-        else:
-            seq_len_max = 1
-        data['seq_len_max'] = seq_len_max
-        imgs = imgs.to(next(self.parameters()).device)
         with torch.no_grad():
             preds = self(imgs, **data)
         pred = preds.argmax(1).detach().cpu().numpy()[0]

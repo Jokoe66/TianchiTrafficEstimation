@@ -74,34 +74,34 @@ classification models.
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
 |     :---:             | :---:| :---:| :---:| :---: | :--:  |
 |  Res50 + FT2 + 4-rank | 0.91 | 0.23 | 0.66 | 0.99  | 0.734 |
-|  Res50 + FT2 + 4-rank + BBN |      |      |      |       |       |
 |  Res50 + FT2 + 2-rank + 2-cls | 0.92 | 0.09 | 0.73 | 0.99  | 0.727 |
 |  Res50 + FT2 + 3-rank + 1-cls | 0.93 | 0.26 | 0.71 | 1.00  | 0.756 |
 |  Res50 + FT2 + 3-rank + 1-cls + LS | 0.92 | 0.20 | 0.72 | 0.99  | 0.744 |
 |  Res50 + FT2 + 3-rank + 1-cls + BBN | 0.89 |0.19  | 0.52 | 0.99  | 0.679 |
 |  Res50 + FT2 + 3-rank + 1-cls + FF | 0.93 | 0.29 | 0.71 | 1.00  | 0.764 |
-|(out-dated)Res50 + FT2 + 3-rank + 1-cls + FF + RF | 0.92 | 0.31 | 0.71 | 1.00  | 0.764 |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + RF | 0.92 | 0.28 | 0.73 | 1.00  | 0.767 |
 |  Res50 + FT2 + 3-rank + 1-cls + RF + RC | 0.84 | 0.25 | 0.63 | 0.91  | 0.685 |
 |  Res50 + FT2 + 3-rank + 1-cls + aug | 0.91 | 0.25 | 0.73 | 0.99  | 0.759 |
-|  Res50 + FT2 + 3-rank + 1-cls + FF + aug |      |      |      |       |       |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + aug | 0.92 | 0.30 | 0.72 | 0.99  | 0.764 |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + aug + TTA |      |      |      |       |       |
 |  Res50 + FT2 + SORD   | 0.91 | 0.16 | 0.64 | 0.99  | 0.710 |
 |  Res50 + FT2 + SORD + 1-cls | 0.92 | 0.20 | 0.66 | 0.99  | 0.726 |
-|  Res50 + FT2 + SORD + BBN  |      |      |      |       |       |
 
 NOTE:
 * By default, the oversampling strategy is adopted to handle imbalanced class distribution.
-* 3-rank + 1-cls denotes ranking the first 3 classes and classify the last single class.
+* **3-rank + 1-cls** denotes ranking the first 3 classes and classify the last single class.
   The oridinal regression of the first 3 classes is conditioned on that the class is not the last
   class.
-* LS denotes label smooth. FF denotes feature fusion. RF denotes RandomFlip at training time.
-  RC denotes RandomResizedCrop at training time.
-* [SORD](https://rauldiaz.github.io/pdfs/sord_cvpr_2019.pdf)
+* **LS** denotes label smooth. **FF** denotes feature fusion. **RF** denotes RandomFlip at
+  training time.**RC** denotes RandomResizedCrop at training time. **TTA** denots Test Time
+  Augmentation.
+* **SORD**: Soft Labels for Ordinal Regression [SORD](https://rauldiaz.github.io/pdfs/sord_cvpr_2019.pdf)
 
 
 #### Sequence and Key Frame Joint Classification 
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
 |     :---:             | :---:| :---:| :---:| :---: | :--:  |
-|    Baseline           |      |      |      |       |       |
+|    Baseline           | 0.90 | 0.26 | 0.69 | 0.99  | 0.746 |
 
 NOTE:
 * Baseline model comprises r50 backbone, FF neck and double 3-rank+1cls head for sequence

@@ -41,11 +41,24 @@ class Classifier(torch.nn.Module):
         feat = self.neck(feat, **kwargs)
         return feat
 
-    def forward(self, *args, **kwargs):
-        if self.training:
-            outputs = self.forward_train(*args, **kwargs)
+    def forward(self, imgs, **kwargs):
+        # format sequence (N, C, H, W, T) to (NxT, C, H, W)
+        if not isinstance(imgs, list):
+            imgs = [imgs]
+        if len(imgs[0].shape) > 4: # frames
+            seq_len_max = imgs[0].shape[-1]
+            for i, img in enumerate(imgs):
+                imgs[i] = (img.permute(4, 0, 1, 2, 3).contiguous()
+                    .view(-1, *img.shape[1:4])
+                    .to(next(self.parameters()).device))
         else:
-            outputs = self.forward_test(*args, **kwargs)
+            imgs[0] = imgs[0].to(next(self.parameters()).device)
+            seq_len_max = 1
+        kwargs['seq_len_max'] = seq_len_max
+        if self.training:
+            outputs = self.forward_train(imgs[0], **kwargs)
+        else:
+            outputs = self.forward_test(imgs, **kwargs)
         return outputs
 
     def forward_train(self, input, **kwargs):
@@ -56,27 +69,18 @@ class Classifier(torch.nn.Module):
         losses.update(loss_head)
         return losses
 
-    def forward_test(self, input, **kwargs):
-        if isinstance(input, torch.Tensor):
-            outputs = self.simple_test(input, **kwargs)
-        elif isinstance(input, list) and isinstance(input[0], torch.Tensor):
-            outputs = self.aug_test(input, **kwargs)
-        else:
-            raise TypeError(
-                "Type of input must be torch.Tensor or list of Tensor)")
-        return outputs
-
     def simple_test(self, input, **kwargs):
         feat = self.extract_feat(input, **kwargs)
         logit = self.head(feat, **kwargs)
         return logit
 
-    def aug_test(self, inputs, **kwargs):
+    def forward_test(self, inputs, **kwargs):
         preds = []
         single_kwargs = kwargs.copy()
+        extra_fields = kwargs.get('extra_aug_fields', [])
         for i in range(len(inputs)):
-            extra_fields = kwargs.get('extra_fields', [])
             for field in extra_fields:
+                field = field[0] # squeeze batch dim
                 single_kwargs[field] = kwargs[field][i]
             pred = self.simple_test(inputs[i], **single_kwargs)
             preds.append(pred)

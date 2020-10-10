@@ -23,13 +23,25 @@ class ImagesToTensor(object):
 
 @PIPELINES.register_module()
 class AssignImgFields(object):
+    """ Add fields.
+    Args:
+        keys(list[str]): names of image fields that are used for transformation
+                               like Crop and Resize.
+        extra_aug_fields(list[str]): names of fields that are augmented to a list, used
+                               during test time augmentation.
 
-    def __init__(self, keys):
+    """
+    def __init__(self, keys, extra_aug_fields=None):
         self.keys = keys
+        self.extra_aug_fields = extra_aug_fields
 
     def __call__(self, results):
-        results['img_fields'] = self.keys
+        results['img_fields'] = self.keys[:] #copy
+        if self.extra_aug_fields is not None:
+            results['extra_aug_fields'] = self.extra_aug_fields[:] #copy
         return results
 
     def __repr__(self):
-        return self.__class__.__name__ + f'(keys={self.keys})'
+        repr_str = self.__class__.__name__
+        repr_str += f'(keys={self.keys}, extra_aug_fields={self.extra_aug_fields})'
+        return repr_str

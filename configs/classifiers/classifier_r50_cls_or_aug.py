@@ -1,6 +1,6 @@
 model = dict(
     type='Classifier',
-    pretrained=None,#'torchvision://resnet50',
+    pretrained='torchvision://resnet50',
     bb_style='mmcls', # build backbone with mmcls or mmdet
     backbone=dict(
         type='ResNet',

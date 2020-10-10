@@ -69,6 +69,7 @@ if __name__ == '__main__':
     self.eval()
     results = dict() # id: pred
     for ind, data in enumerate(tqdm.tqdm(test_loader)):
+        imgs = data.pop('imgs')
         with torch.no_grad():
             preds = self(imgs, **data)
         pred = preds.argmax(1).detach().cpu().numpy()[0]

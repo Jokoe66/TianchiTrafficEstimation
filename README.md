@@ -83,7 +83,8 @@ classification models.
 |  Res50 + FT2 + 3-rank + 1-cls + RF + RC | 0.84 | 0.25 | 0.63 | 0.91  | 0.685 |
 |  Res50 + FT2 + 3-rank + 1-cls + aug | 0.91 | 0.25 | 0.73 | 0.99  | 0.759 |
 |  Res50 + FT2 + 3-rank + 1-cls + FF + aug | 0.92 | 0.30 | 0.72 | 0.99  | 0.764 |
-|  Res50 + FT2 + 3-rank + 1-cls + FF + aug + TTA |      |      |      |       |       |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + aug + TTA | 0.90 | 0.29 | 0.70 | 0.99  | 0.755 |
+|  Res50 + FT2 + 3-rank + 1-cls + FF + RF + TTA | 0.93 | 0.27 | 0.72 | 1.00  | 0.763 |
 |  Res50 + FT2 + SORD   | 0.91 | 0.16 | 0.64 | 0.99  | 0.710 |
 |  Res50 + FT2 + SORD + 1-cls | 0.92 | 0.20 | 0.66 | 0.99  | 0.726 |
 

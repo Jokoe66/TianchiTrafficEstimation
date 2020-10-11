@@ -14,7 +14,8 @@ class ImagesToTensor(object):
                 img = results[key][i]
                 if len(img.shape) < 3:
                     img = np.expand_dims(img, -1)
-                results[key][i] = to_tensor(img.transpose(2, 0, 1))
+                results[key][i] = to_tensor(
+                    np.ascontiguousarray(img.transpose(2, 0, 1)))
         return results
 
     def __repr__(self):

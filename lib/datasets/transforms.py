@@ -421,11 +421,12 @@ class PackSequence(object):
             if len(ks) == 1:
                 results[key] = results.pop(ks[0])
                 continue
-            results[key] = []
+            tmp = []
             for k in ks:
                 if results[k] is None: continue
-                results[key].append(results[k])
+                tmp.append(results[k])
                 results.pop(k)
+            results[key] = tmp
         return results
 
     def __repr__(self):

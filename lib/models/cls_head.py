@@ -253,18 +253,20 @@ class MultiClsHead(nn.Module):
         self.register_buffer('weights', torch.tensor(weights))
 
     def forward(self, feat, **kwargs):
-        preds = []
-        for head in self.heads:
-            logit = head(feat, **kwargs)
-            preds.append(logit)
-        preds = torch.stack(preds, -1)
-        merged_preds = (self.weights * preds).sum(-1)
-        return merged_preds
+        if not self.training:
+            preds = self.heads[0](feat, **kwargs)
+        else:
+            preds = []
+            for head in self.heads:
+                logit = head(feat, **kwargs)
+                preds.append(logit)
+            preds = torch.stack(preds)
+        return preds
 
     def loss(self, preds, labels, **kwargs):
         losses = dict()
         for i, head in enumerate(self.heads):
-            losses1 = head.loss(preds, labels)
+            losses1 = head.loss(preds[i], labels)
             for k, v in losses1.items():
                 w = self.weights[i] if 'loss' in k else 1.
                 losses[f'head{i}.{k}'] = w * v

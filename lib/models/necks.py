@@ -121,24 +121,42 @@ class FF(nn.Module):
 
 @NECKS.register_module()
 class Seq(nn.Module):
+    """ Sequence Model.
+    Args:
+        in_channel: channel of input feture vectors
+        hidden_size: The number of features in the hidden state.
+        num_layers: Number of reccurent layers.
+        bidirectional: If ``True``, becomes a bidirectional GRU.
+        reduction: Define the way of generating sthe equence feature vector.
+            One of (``mean``, ``key``). ``mean`` denotes averaging over all
+            frame feature vectors. ``key`` denotes using key frame feature
+            vector.
 
-    def __init__(self, in_channel, hidden_size):
+    """
+
+    def __init__(self,
+                 in_channel,
+                 hidden_size,
+                 num_layers=1,
+                 bidirectional=False,
+                 reduction='mean'):
         super(Seq, self).__init__()
-        self.lstm = torch.nn.GRU(
-            in_channel, hidden_size) if hidden_size else None
+        self.lstm = torch.nn.GRU(in_channel, hidden_size, num_layers,
+            bidirectional=bidirectional) if hidden_size else None
+        self.reduction = reduction
 
-    def forward(self, feat, seq_len_max, seq_len=None, key=None, **kwargs):
+    def forward(self, feat, seq_len_max, seq_len=None, keys=None, **kwargs):
         feat = feat.view(seq_len_max, len(feat)//seq_len_max, -1)
         feat, _ = self.lstm(feat)
-        if key is not None:
-            # emphasize key frame
-            weights = feat.new_ones(feat.shape) * 0.8
-            for b in range(len(key)):
-                weights[key[b], b] *= 1.5
-            feat = feat * weights
-        if seq_len is not None:
+        if self.reduction == 'none':
+            feat = feat
+        elif self.reduction == 'key':
+            assert keys is not None, "keys is None"
             feat = torch.stack(
-                [feat[:seq_len[b], b].mean(0) for b in range(len(seq_len))], 0) #b, c
+                [feat[keys[b], b] for b in range(len(feat[0]))], 0) #b, c
+        elif seq_len is not None:
+            feat = torch.stack(
+                [feat[:seq_len[b], b].mean(0) for b in range(len(seq_len))], 0)
         else:
             feat = feat.mean(0)
         return feat

@@ -71,6 +71,8 @@ class Classifier(torch.nn.Module):
 
     def simple_test(self, input, **kwargs):
         feat = self.extract_feat(input, **kwargs)
+        if kwargs.get('return_features', False):
+            return feat
         logit = self.head(feat, **kwargs)
         return logit
 

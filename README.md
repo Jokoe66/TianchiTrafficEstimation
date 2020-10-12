@@ -101,8 +101,10 @@ NOTE:
 
 #### Sequence and Key Frame Joint Classification 
 |    Method      | F1<sub>0</sub> | F1<sub>1</sub> | F1<sub>2</sub> | F1<sub>3</sub>  | score |
-|     :---:             | :---:| :---:| :---:| :---: | :--:  |
-|    Baseline           | 0.90 | 0.26 | 0.69 | 0.99  | 0.746 |
+|     :---:               | :---:| :---:| :---:| :---: | :--:  |
+|    Baseline             | 0.90 | 0.26 | 0.69 | 0.99  | 0.746 |
+|+sequence prediction only| 0.92 | 0.30 | 0.70 | 1.00  | 0.759 |
+|    + seq:key=1:2        | 0.91 | 0.29 | 0.71 | 0.99  | 0.762 |
 
 NOTE:
 * Baseline model comprises r50 backbone, FF neck and double 3-rank+1cls head for sequence

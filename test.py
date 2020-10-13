@@ -1,61 +1,71 @@
 import argparse
+import glob
+import os
+from collections import defaultdict
 
 import tqdm
 import pandas as pd
 import numpy as np
 import torch
+import torch.nn.functional as F
+import mmcv
+from mmcv.utils import Config
 from torch.utils.data import DataLoader
+from mmcls.models.builder import build_classifier
+from sklearn.model_selection import KFold
 from sklearn.metrics import f1_score
 
 from lib.datasets import ImageSequenceDataset
 from lib.models import Classifier
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_root', type=str, default='')
     parser.add_argument('--ann_file', type=str, default='')
+    parser.add_argument('--config_file', type=str, default='')
+    parser.add_argument('--test_file', type=str,
+                        default='/tcdata/amap_traffic_final_test_0906.json')
     parser.add_argument('--model_path', type=str, default='')
+    parser.add_argument('--ensemble', type=int, default=0)
     parser.add_argument('--key_frame_only', action='store_true',
                         default=False)
     parser.add_argument('--device', type=str, default='cuda:0')
     args = parser.parse_args()
 
+    cfg = Config.fromfile(args.config_file)
     test_set = ImageSequenceDataset(
         args.img_root,
         args.ann_file,
         'test',
         key_frame_only=args.key_frame_only,
-        input_size=(640, 360)) # consistent with training time's input_size
-    test_loader = DataLoader(test_set, batch_size=4, num_workers=0)
+        transform=cfg.test_pipeline) # consistent with training time's input_size
+    test_loader = DataLoader(test_set, batch_size=1, shuffle=False)
 
-    lstm = None if args.key_frame_only else 128
-    self = Classifier(num_classes=4, lstm=lstm).to(args.device)
-    self.load_state_dict(torch.load(args.model_path))
+    k = 5
+    kf = KFold(k, shuffle=True, random_state=666)
+    models = [build_classifier(cfg.model).to(args.device) for _ in range(k)]
 
-    self.eval()
-    all_preds = np.empty((0,))
-    all_labels = np.empty((0,))
+    # construct mapping between data index and validation set idx
+    ind2fold = defaultdict(int) # default to 0
+    indices = range(len(test_loader))
+    for fold, (train_idx, val_idx) in enumerate(kf.split(indices)):
+        for ind in val_idx:
+            ind2fold[ind] = fold
+        models[fold].load_state_dict(
+            torch.load(f'../user_data/res50/best{fold+1}.pth',
+               map_location='cpu'))
+        models[fold].eval()
+
+    preds = []
+    labels = []
     for ind, data in enumerate(tqdm.tqdm(test_loader)):
-        imgs = data['imgs']
-        if len(imgs.shape) > 4: # frames
-            seq_len = imgs.shape[-1]
-            imgs = (imgs.permute(4, 0, 1, 2, 3).contiguous()
-                .view(-1, *imgs.shape[1:4]))
-        else:
-            seq_len = 1
-        labels = data['label']
-
-        imgs = imgs.to(next(self.parameters()).device)
-        labels = labels.to(next(self.parameters()).device)
-
-        data.pop('seq_len')
+        fold = ind2fold[ind]
+        self = models[fold]
+        imgs = data.pop('imgs')
         with torch.no_grad():
-            preds = self(imgs, seq_len, **data)
-
-        all_labels = np.hstack([all_labels, labels.cpu().numpy()])
-        all_preds = np.hstack([all_preds,
-            preds.argmax(1).detach().cpu().numpy()])
-    f1_scores = f1_score(all_labels, all_preds, average=None)
-    f1 = (np.array([0.1, 0.2, 0.3, 0.4]) * f1_scores).sum()
-    print(f'f1_scores: {f1_scores.tolist()}\n'
-          f'f1_score: {f1}')
+            pred = self(imgs, **data)
+        preds.append(pred.argmax(1).cpu().numpy()[0])
+        labels.append(test_set.anns[ind]['status'])
+    f1s = f1_score(labels, preds, average=None)
+    print(f1s)

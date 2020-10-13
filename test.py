@@ -15,7 +15,7 @@ from mmcls.models.builder import build_classifier
 from sklearn.model_selection import KFold
 from sklearn.metrics import f1_score
 
-from lib.datasets import ImageSequenceDataset
+from lib.datasets import ImageSequenceDataset, DistributedTestSubsetSampler
 from lib.models import Classifier
 
 
@@ -41,6 +41,7 @@ if __name__ == '__main__':
         key_frame_only=args.key_frame_only,
         transform=cfg.test_pipeline) # consistent with training time's input_size
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False)
+        #sampler=DistributedTestSubsetSampler(test_set, range(len(test_set))))
 
     k = 5
     kf = KFold(k, shuffle=True, random_state=666)
@@ -48,7 +49,7 @@ if __name__ == '__main__':
 
     # construct mapping between data index and validation set idx
     ind2fold = defaultdict(int) # default to 0
-    indices = range(len(test_loader))
+    indices = range(len(test_set))
     for fold, (train_idx, val_idx) in enumerate(kf.split(indices)):
         for ind in val_idx:
             ind2fold[ind] = fold
@@ -59,7 +60,9 @@ if __name__ == '__main__':
 
     preds = []
     labels = []
+    sampled_indices = list(iter(test_loader.sampler)) #deterministic sampler
     for ind, data in enumerate(tqdm.tqdm(test_loader)):
+        ind = sampled_indices[ind]
         fold = ind2fold[ind]
         self = models[fold]
         imgs = data.pop('imgs')

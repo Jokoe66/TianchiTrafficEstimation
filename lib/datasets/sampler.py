@@ -198,3 +198,43 @@ class DistributedReversedSubsetSampler(Sampler):
 
     def set_epoch(self, epoch):
         self.epoch = epoch
+
+
+class DistributedTestSubsetSampler(Sampler):
+
+    def __init__(self, dataset, indices, shuffle=False):
+        self.rank, self.num_replicas = get_dist_info()
+        self.shuffle = shuffle
+        self.cat2inds = defaultdict(list)
+        for ind in indices:
+            self.cat2inds[(dataset.get_cat_ids(ind))].append(ind)
+        # preserve all samples of the category with minimum samplese
+        base_num = min(len(_) for _ in self.cat2inds.values())
+        # real num_samples: [1539, 159, 402, 2188]
+        num_samples = [base_num * 3, base_num, base_num *2, base_num * 4]
+        self.num_total = (int(sum(num_samples) / self.num_replicas)
+                             * self.num_replicas)
+        num_samples[-1] += (self.num_total - sum(num_samples))
+        np.random.seed(666)
+        for cat, inds in self.cat2inds.items():
+            np.random.shuffle(inds)
+            self.cat2inds[cat] = inds[:num_samples[cat]] # preserve certain samples
+        self.all_inds = [_ for inds in self.cat2inds.values() for _ in inds]
+        np.random.shuffle(self.all_inds)
+        self.all_inds.sort()
+        self.epoch = 0
+
+    def __iter__(self):
+        np.random.seed(self.epoch)
+        all_inds = self.all_inds[:]
+        if self.shuffle:
+            np.random.shuffle(all_inds)
+        # inds on each device
+        all_inds = all_inds[self.rank:self.num_total:self.num_replicas]
+        return iter(all_inds)
+
+    def __len__(self):
+        return self.num_total // self.num_replicas
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch

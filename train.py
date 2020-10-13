@@ -173,6 +173,7 @@ if __name__ == '__main__':
         args.img_root,
         args.ann_file,
         'train',
+        prune=True,
         key_frame_only=args.key_frame_only,
         transform=cfg.train_pipeline,
         )
@@ -180,6 +181,7 @@ if __name__ == '__main__':
         args.img_root,
         args.ann_file,
         'train',
+        prune=True,
         key_frame_only=args.key_frame_only,
         transform=cfg.test_pipeline,
         )

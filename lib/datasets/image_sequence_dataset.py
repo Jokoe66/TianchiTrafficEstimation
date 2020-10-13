@@ -23,11 +23,14 @@ class ImageSequenceDataset(Dataset):
                  img_root=None,
                  ann_file=None,
                  split='train',
+                 prune=False,
                  transform=None,
                  **kwargs):
         self.img_root = img_root if img_root else self.img_root % split
         self.ann_file = ann_file if ann_file else self.ann_file % split
         self._load_anns()
+        if prune:
+            self._prune_anns()
         if transform:
             self.transform = Compose([
                 build_from_cfg(t, PIPELINES) for t in transform])
@@ -41,6 +44,26 @@ class ImageSequenceDataset(Dataset):
             self.anns = self.anns['annotations']
         for ann in self.anns:
             ann['frames'].sort(key=lambda x:x['frame_name'])
+
+    def _prune_anns(self):
+        """ Adjust the class distribution toward that on the test set.
+        """
+        classes_prob = [0.3, 0.1, 0.2, 0.4]
+        cat2idx = defaultdict(list)
+        for idx in range(len(self.anns)):
+            cat2idx[self.anns[idx]['status']].append(idx)
+        # preserve all samples of the category with minimum samplese
+        base_num = min(len(_) for _ in cat2idx.values())
+        # real num_samples: [1539, 159, 402, 2188]
+        num_samples = [base_num * 3, base_num, base_num *2, base_num * 4]
+        np.random.seed(666) # deterministic shuffle
+        for cat, inds in cat2idx.items():
+            np.random.shuffle(inds)
+            cat2idx[cat] = inds[:num_samples[cat]] # preserve certain samples
+        # update anns
+        all_inds = [_ for inds in cat2idx.values() for _ in inds]
+        all_inds.sort()
+        self.anns = [self.anns[idx] for idx in all_inds]
 
     def get_cat_ids(self, idx):
         return self.anns[idx]['status']

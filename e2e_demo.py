@@ -24,7 +24,7 @@ class Ensemble(torch.nn.Module):
         preds = []
         for model in self.models:
             pred = model(*args, **kwargs)
-            if ((pred.sum(1) - 1) > 1e-4).any():
+            if (torch.abs(pred.sum(1) - 1) > 1e-4).any():
                 pred = F.softmax(pred, 1)
             preds.append(pred)
         preds = torch.stack(preds, 0)

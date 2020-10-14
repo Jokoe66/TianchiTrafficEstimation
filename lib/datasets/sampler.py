@@ -29,6 +29,35 @@ class CombinedSampler(Sampler):
             sampler.set_epoch(epoch)
 
 
+class DASampler(Sampler):
+
+    def __init__(self, samplers):
+        self.samplers = samplers
+        self.epoch = 0
+
+    def __iter__(self):
+        np.random.seed(self.epoch)
+        all_inds = [list(iter(sampler)) for sampler in self.samplers]
+        max_num_inds = max(len(_) for _ in all_inds)
+        for i, inds in enumerate(all_inds):
+            if len(inds) < max_num_inds:
+                inds = np.array(inds)[
+                        np.random.randint(0, len(inds), (max_num_inds,))]
+                all_inds[i] = inds.tolist()
+        all_inds = np.vstack(all_inds)
+        all_inds = all_inds.transpose().flatten().tolist()
+        return iter(all_inds)
+
+    def __len__(self):
+        return (len(self.samplers)
+                * max(len(sampler) for sampler in self.samplers))
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch
+        for sampler in self.samplers:
+            sampler.set_epoch(epoch)
+
+
 class DistributedClassBalancedSubsetSampler(Sampler):
 
     def __init__(self, dataset, indices):

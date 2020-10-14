@@ -16,11 +16,12 @@ from torch.utils.data import DataLoader
 from sklearn.model_selection import KFold
 from sklearn.metrics import f1_score, confusion_matrix
 from mmcls.models import build_classifier
+from mmcls.datasets import build_dataset
 
 from lib.datasets import (ImageSequenceDataset, ClassBalancedSubsetSampler,
                           DistributedClassBalancedSubsetSampler,
                           DistributedSubsetSampler, CombinedSampler,
-                          DistributedReversedSubsetSampler)
+                          DistributedReversedSubsetSampler, DASampler)
 from lib.models import Classifier, BBNLoss
 from lib.utils.dist_utils import collect_results_cpu
 
@@ -169,26 +170,15 @@ if __name__ == '__main__':
     torch.distributed.init_process_group('nccl')
     torch.cuda.set_device(args.local_rank)
 
-    training_set = ImageSequenceDataset(
-        args.img_root,
-        args.ann_file,
-        'train',
-        #prune=True,
-        key_frame_only=args.key_frame_only,
-        transform=cfg.train_pipeline,
-        )
-    val_set = ImageSequenceDataset(
-        args.img_root,
-        args.ann_file,
-        'train',
-        #prune=True,
-        key_frame_only=args.key_frame_only,
-        transform=cfg.test_pipeline,
-        )
+    training_set = build_dataset(cfg.data.train)
+    val_set = build_dataset(cfg.data.val)
 
     outputs = []
 
-    indices = np.arange(len(training_set))
+    if cfg.get('domain_adaption', False):
+        indices = np.arange(len(training_set.datasets[0]))
+    else:
+        indices = np.arange(len(training_set))
     k = 5
     kf = KFold(k, shuffle=True, random_state=666)
     for idx, (train_inds, val_inds) in enumerate(kf.split(indices)):
@@ -200,11 +190,15 @@ if __name__ == '__main__':
         samplers = [
             DistributedSubsetSampler(train_inds),
             DistributedReversedSubsetSampler(training_set, train_inds),
-            DistributedClassBalancedSubsetSampler(training_set, train_inds)
+            DistributedClassBalancedSubsetSampler(training_set, train_inds),
+            DistributedSubsetSampler(
+                np.arange(len(training_set.datasets[1]))
+                + len(training_set.datasets[0])),
             ]
         # specify sampler here to use different long-tail distribution handling
         train_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
-            sampler=samplers[2])#CombinedSampler(samplers[:2])) # for BBN
+            sampler=DASampler(samplers[2:4]))
+        # samplers[2])#CombinedSampler(samplers[:2])) # for BBN
         val_loader = DataLoader(val_set, batch_size=bs, num_workers=4,
             sampler=DistributedSubsetSampler(val_inds, shuffle=False))
         model = build_classifier(cfg.model).to(args.local_rank)

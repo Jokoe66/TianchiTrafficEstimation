@@ -21,3 +21,18 @@ class AlphaScheduler(nn.Module):
 
     def __repr__(self):
         return self.__class__.__name__ + f'(max_steps={self.max_steps})'
+
+
+class GRL(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, x):
+        ctx.save_for_backward(x)
+        return x
+
+    @staticmethod
+    def backward(ctx, grad_y):
+        if ctx.needs_input_grad[0]:
+            return -grad_y
+        else:
+            return None

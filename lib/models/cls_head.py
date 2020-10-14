@@ -5,7 +5,7 @@ from mmcls.models import build_head, build_loss
 from mmcls.models.builder import HEADS
 
 from .necks import Seq
-from .utils import AlphaScheduler
+from .utils import AlphaScheduler, GRL
 
 @HEADS.register_module()
 class DPClsHead(nn.Module):
@@ -293,4 +293,38 @@ class MultiClsHead(nn.Module):
             for k, v in losses1.items():
                 w = self.weights[i] if 'loss' in k else 1.
                 losses[f'head{i}.{k}'] = w * v
+        return losses
+
+
+@HEADS.register_module()
+class DAClsHead(nn.Module):
+
+    def __init__(self,
+                 cls_head,
+                 da_head,
+                 **kwargs):
+        super(DAClsHead, self).__init__()
+        self.cls_head = build_head(cls_head)
+        self.da_head = build_head(da_head)
+
+    def forward(self, feat, **kwargs):
+        if not self.training:
+            preds = self.cls_head(feat, **kwargs)
+            return preds
+        else:
+            logit = self.cls_head(feat[0::2], **kwargs)
+            domain_logit = self.da_head(GRL.apply(feat), **kwargs)
+            return logit, domain_logit
+
+    def loss(self, preds, labels, **kwargs):
+        loss_cls = self.cls_head.loss(preds[0], labels[0::2])
+        loss_da = self.da_head.loss(
+            preds[1],
+            torch.arange(len(preds[1])).to(preds[1].device) % 2
+            )
+        losses = dict()
+        for k, v in loss_cls.items():
+            losses[f'cls_head.{k}'] = v
+        for k, v in loss_da.items():
+            losses[f'da_head.{k}'] = v
         return losses

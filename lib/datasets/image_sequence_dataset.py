@@ -7,11 +7,12 @@ import numpy as np
 import torch
 import mmcv
 from torch.utils.data import Dataset
-from torchvision.transforms import Compose
 from mmcv.utils import build_from_cfg
-from mmcls.datasets import PIPELINES
+from mmcls.datasets import PIPELINES, DATASETS
+from mmcls.datasets.pipelines import Compose
 
 
+@DATASETS.register_module()
 class ImageSequenceDataset(Dataset):
 
     img_root = '../data/amap_traffic_%s_0712/'
@@ -32,8 +33,7 @@ class ImageSequenceDataset(Dataset):
         if prune:
             self._prune_anns()
         if transform:
-            self.transform = Compose([
-                build_from_cfg(t, PIPELINES) for t in transform])
+            self.transform = Compose(transform)
         else:
             self.transform = None
         self.key_frame_only = kwargs.get('key_frame_only', False)

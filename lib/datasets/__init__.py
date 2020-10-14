@@ -12,5 +12,5 @@ __all__ = [
     'CombinedSampler', 'PadSeq', 'StackSeq', 'SeqRandomResizedCrop',
     'SeqRandomFlip', 'SeqResize', 'SeqNormalize', 'ImagesToTensor',
     'LoadImagesFromFile', 'AssignImgFields', 'PackSequence', 'UnpackSequence',
-    'Albumentation', 'DistributedTestSubsetSampler'
+    'Albumentation', 'DistributedTestSubsetSampler', 'DASampler'
     ]

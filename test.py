@@ -13,7 +13,7 @@ from mmcv.utils import Config
 from torch.utils.data import DataLoader
 from mmcls.models.builder import build_classifier
 from sklearn.model_selection import KFold
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, confusion_matrix
 
 from lib.datasets import ImageSequenceDataset, DistributedTestSubsetSampler
 from lib.models import Classifier
@@ -54,13 +54,17 @@ if __name__ == '__main__':
         for ind in val_idx:
             ind2fold[ind] = fold
         models[fold].load_state_dict(
-            torch.load(f'../user_data/res50/best{fold+1}.pth',
+            #torch.load(f'../user_data/res50/best{fold+1}.pth',
+            torch.load(f'work_dirs/classification/fold{fold+1}/classifier_epoch6.pth',
                map_location='cpu'))
         models[fold].eval()
 
     preds = []
     labels = []
     sampled_indices = list(iter(test_loader.sampler)) #deterministic sampler
+    # when evaluating scene classification, the forward method of MultiClsHead
+    # should output the outputs of scene classification head.
+    eval_type = 'status' # or 'scenes'
     for ind, data in enumerate(tqdm.tqdm(test_loader)):
         ind = sampled_indices[ind]
         fold = ind2fold[ind]
@@ -69,6 +73,18 @@ if __name__ == '__main__':
         with torch.no_grad():
             pred = self(imgs, **data)
         preds.append(pred.argmax(1).cpu().numpy()[0])
-        labels.append(test_set.anns[ind]['status'])
+        #labels.append(test_set.anns[ind]['status'])
+        labels.append(data[eval_type].cpu().item())
+    result_file = '/tmp/tmp_result.pkl'
+    mmcv.dump([labels, preds], result_file)
+    if eval_type == 'scenes':
+        labels = np.array(labels)
+        preds = np.array(preds)
+        mask = np.where(labels != -1)
+        labels = labels[mask]
+        preds = preds[mask]
     f1s = f1_score(labels, preds, average=None)
+    cm = confusion_matrix(labels, preds)
+    print(cm)
     print(f1s)
+    #print((np.array([0.1, 0.2, 0.3, 0.4]) * np.array(f1s)).sum())

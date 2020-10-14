@@ -141,6 +141,7 @@ class ImageSequenceDataset(Dataset):
         )
         results['img_prefix'] = os.path.join(self.img_root, ann['id'])
         results['labels'] = ann['status']
+        results['scenes'] = ann.get('scene', -1)
         if self.key_frame_only:
             img = mmcv.imread(
                 os.path.join(results['img_prefix'],

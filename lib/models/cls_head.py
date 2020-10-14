@@ -170,6 +170,29 @@ class KeyFrameClsORHead(ClsORHead):
 
 
 @HEADS.register_module()
+class FrameSceneClsHead(DPClsHead):
+
+    def loss(self, preds, labels, scenes, seq_len, seq_len_max=5, **kwargs):
+        preds = preds.view(
+            seq_len_max, len(preds) // seq_len_max, *preds.shape[1:])
+        img_preds = []
+        img_scenes = []
+        for b in range(len(seq_len)):
+            if scenes[b] == -1: continue
+            img_preds.append(preds[:seq_len[b], b])
+            img_scenes.append(scenes[b].repeat(seq_len[b]))
+        if len(img_preds) == 0:
+            loss_cls = preds.new([0.]).requires_grad_()
+            acc_cls = preds.new([0.]).requires_grad_()
+        else:
+            img_preds = torch.cat(img_preds)
+            img_scenes = torch.cat(img_scenes)
+            loss_cls = self.criterion(img_preds, img_scenes)
+            acc_cls = self.acc(img_preds, img_scenes)
+        return dict(loss_cls=loss_cls, acc_cls=acc_cls)
+
+
+@HEADS.register_module()
 class LSTMDPClsHead(nn.Module):
 
     def __init__(self,
@@ -260,13 +283,13 @@ class MultiClsHead(nn.Module):
             for head in self.heads:
                 logit = head(feat, **kwargs)
                 preds.append(logit)
-            preds = torch.stack(preds)
+            #preds = torch.stack(preds)
         return preds
 
     def loss(self, preds, labels, **kwargs):
         losses = dict()
         for i, head in enumerate(self.heads):
-            losses1 = head.loss(preds[i], labels)
+            losses1 = head.loss(preds[i], labels, **kwargs)
             for k, v in losses1.items():
                 w = self.weights[i] if 'loss' in k else 1.
                 losses[f'head{i}.{k}'] = w * v

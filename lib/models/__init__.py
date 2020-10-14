@@ -9,7 +9,7 @@ from .utils import *
 __all__ = ['Classifier', 'MixupClassifier', 'HRNetm', #'EfficientNet',
     'PFFSeqNeck', 'PFFBPSeqNeck', 'SequentialNecks',
     'DPClsHead', 'ClsORHead', 'LSTMClsORHead', 'KeyFrameClsORHead',
-    'MultiClsHead',
+    'MultiClsHead', 'FrameSceneClsHead',
     'ORLoss', 'SORDLoss', 'ClsORLoss', 'BAccuracy', 'BBNLoss',
     'BBNAccuracy', 'BinaryLabelSmoothLoss', 'AlphaScheduler',
     ]

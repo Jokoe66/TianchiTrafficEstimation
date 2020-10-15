@@ -153,8 +153,8 @@ if __name__ == '__main__':
         user_data_root, "enriched_annotations_train_final1_dnn.pkl")))
     test_json = train_json
     # uncomment before submitting
-    #test_json = pd.DataFrame(pd.read_pickle(os.path.join(
-    #    user_data_root, "enriched_annotations_test_final.pkl")))
+    test_json = pd.DataFrame(pd.read_pickle(os.path.join(
+        user_data_root, "enriched_annotations_test_final_dnn.pkl")))
 
     train_df = get_data(train_json[:])
     weights = np.array([0.6, 5.0, 2.0, 0.4])
@@ -220,7 +220,6 @@ if __name__ == '__main__':
     
     # submit
     # uncomment before submmiting
-    '''
     sub=test_df[["id"]].copy()
     sub["pred"]=np.argmax(lgb_test,axis=1)
 
@@ -235,4 +234,3 @@ if __name__ == '__main__':
         i['status'] = result_dic[i["id"]]
     with open(f"result.json","w") as f:
         f.write(json.dumps(content))
-    '''

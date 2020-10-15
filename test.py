@@ -54,8 +54,8 @@ if __name__ == '__main__':
         for ind in val_idx:
             ind2fold[ind] = fold
         models[fold].load_state_dict(
-            #torch.load(f'../user_data/res50/best{fold+1}.pth',
-            torch.load(f'work_dirs/classification/fold{fold+1}/classifier_epoch6.pth',
+            torch.load(f'../user_data/res50/best{fold+1}.pth',
+            #torch.load(f'work_dirs/classification/fold{fold+1}/classifier_epoch6.pth',
                map_location='cpu'))
         models[fold].eval()
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     sampled_indices = list(iter(test_loader.sampler)) #deterministic sampler
     # when evaluating scene classification, the forward method of MultiClsHead
     # should output the outputs of scene classification head.
-    eval_type = 'status' # or 'scenes'
+    eval_type = 'labels' # or 'scenes'
     for ind, data in enumerate(tqdm.tqdm(test_loader)):
         ind = sampled_indices[ind]
         fold = ind2fold[ind]

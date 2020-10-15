@@ -77,5 +77,6 @@ if __name__ == '__main__':
         results[id] = pred
     result_json = mmcv.load(args.test_file)
     for ann in result_json['annotations']:
-        ann['status'] = results[ann['id']]
+        ann['status'] = int(results[ann['id']])
+    mmcv.dump(result_json, '/tmp/result.pkl')
     mmcv.dump(result_json, './result.json')

@@ -191,14 +191,16 @@ if __name__ == '__main__':
             DistributedSubsetSampler(train_inds),
             DistributedReversedSubsetSampler(training_set, train_inds),
             DistributedClassBalancedSubsetSampler(training_set, train_inds),
-            DistributedSubsetSampler(
-                np.arange(len(training_set.datasets[1]))
-                + len(training_set.datasets[0])),
+            #DistributedSubsetSampler(
+            #    np.arange(len(training_set.datasets[1]))
+            #    + len(training_set.datasets[0])),
             ]
         # specify sampler here to use different long-tail distribution handling
         train_loader = DataLoader(training_set, batch_size=bs, num_workers=4,
-            sampler=DASampler(samplers[2:4]))
-        # samplers[2])#CombinedSampler(samplers[:2])) # for BBN
+            sampler=samplers[2])
+        #DASampler(samplers[2:4]))
+        # samplers[2])
+        #CombinedSampler(samplers[:2])) # for BBN
         val_loader = DataLoader(val_set, batch_size=bs, num_workers=4,
             sampler=DistributedSubsetSampler(val_inds, shuffle=False))
         model = build_classifier(cfg.model).to(args.local_rank)
@@ -217,6 +219,7 @@ if __name__ == '__main__':
         outputs.append(output)
         if dist.get_rank() == 0:
             print(f'{k}-fold cross validation: {idx + 1}.')
+            #print output of the last fold
             print(pd.DataFrame(outputs)[-1:].transpose())
     if dist.get_rank() == 0:
         print(pd.DataFrame(outputs)

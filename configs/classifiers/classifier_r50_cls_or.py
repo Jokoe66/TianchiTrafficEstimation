@@ -18,10 +18,10 @@ model = dict(
             pool_c=256,
             flatten=False),
         feature_fusion=dict(
-            feat_mask_dim=2,
-            feat_vec_dim=13),
+            feat_mask_dim=0,
+            feat_vec_dim=0),
         lstm=dict(
-            in_channel=9*16*(256+2)+13,
+            in_channel=9*16*256,
             hidden_size=128)),
     head=dict(
         type='ClsORHead',
@@ -52,23 +52,40 @@ train_pipeline = [
     #dict(type='SeqRandomResizedCrop',
     #    size=(360, 640), scale=(0.5, 1), ratio=(1.5, 2)),
     dict(type='SeqResize', size=(360, 640)),
+    dict(type='SeqRandomFlip', flip_prob=0.5),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='PadSeq', seq_len_max=5, pad_value=0,
-         keys=['imgs', 'feat_vector', 'feat_mask']),
+         keys=['imgs']),
     dict(type='ImagesToTensor', keys=['imgs']),
-    dict(type='StackSeq', keys=['imgs', 'feat_vector', 'feat_mask']),
+    dict(type='StackSeq', keys=['imgs']),
     dict(type='Collect',
-         keys=['imgs', 'feat_vector', 'feat_mask', 'labels', 'seq_len'])
+         keys=['imgs', 'labels', 'seq_len'])
     ]
 test_pipeline = [
     #dict(type='LoadImagesFromFile'),
     dict(type='SeqResize', size=(360, 640)),
     dict(type='SeqNormalize', **img_norm_cfg),
     dict(type='PadSeq', seq_len_max=5, pad_value=0,
-         keys=['imgs', 'feat_vector', 'feat_mask']),
+         keys=['imgs']),
     dict(type='ImagesToTensor', keys=['imgs']),
-    dict(type='StackSeq', keys=['imgs', 'feat_vector', 'feat_mask']),
+    dict(type='StackSeq', keys=['imgs']),
     dict(type='Collect',
-         keys=['imgs', 'feat_vector', 'feat_mask', 'labels', 'seq_len'])
+         keys=['imgs', 'labels', 'seq_len'])
     ]
+data = dict(
+    train=dict(
+              type='ImageSequenceDataset',
+              img_root='../data/amap_traffic_final_train_data',
+              ann_file='../user_data/enriched_annotations_train_final1.pkl',
+              prune=True,
+              key_frame_only=False,
+              transform=train_pipeline),
+    val=dict(
+        type='ImageSequenceDataset',
+        img_root='../data/amap_traffic_final_train_data',
+        ann_file='../user_data/enriched_annotations_train_final1.pkl',
+        prune=True,
+        key_frame_only=False,
+        transform=test_pipeline),
+    )
 load_from = None

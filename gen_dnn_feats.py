@@ -23,6 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_root', type=str, default='')
     parser.add_argument('--ann_file', type=str, default='')
     parser.add_argument('--config_file', type=str, default='')
+    parser.add_argument('--model_dir', type=str, default='')
     parser.add_argument('--key_frame_only', action='store_true',
                         default=False)
     parser.add_argument('--device', type=str, default='cuda:0')
@@ -48,7 +49,7 @@ if __name__ == '__main__':
         for ind in val_idx:
             ind2fold[ind] = fold
         models[fold].load_state_dict(
-            torch.load(f'../user_data/res50/best{fold+1}.pth',
+            torch.load(os.path.join(args.model_dir, f'best{fold+1}.pth'),
                map_location='cpu'))
         models[fold].eval()
 

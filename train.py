@@ -13,7 +13,7 @@ from mmcv.utils import Config
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.metrics import f1_score, confusion_matrix
 from mmcls.models import build_classifier
 from mmcls.datasets import build_dataset
@@ -180,8 +180,10 @@ if __name__ == '__main__':
     else:
         indices = np.arange(len(training_set))
     k = 5
-    kf = KFold(k, shuffle=True, random_state=666)
-    for idx, (train_inds, val_inds) in enumerate(kf.split(indices)):
+    # ensure the class distribution is same for training and validation sets
+    kf = StratifiedKFold(k, shuffle=True, random_state=666)
+    labels = [training_set.get_cat_ids(_) for _ in range(len(training_set))]
+    for idx, (train_inds, val_inds) in enumerate(kf.split(indices, labels)):
         torch.manual_seed(666)
         torch.cuda.manual_seed_all(666)
         np.random.seed(666)

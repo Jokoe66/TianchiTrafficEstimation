@@ -28,14 +28,14 @@ model = dict(
         cls_head=dict(
             type='DPClsHead',
             in_channel=128,
-            dropout=0,
+            dropout=0.,
             num_classes=2,
             loss=dict(type='CrossEntropyLoss'),
             acc=dict(type='Accuracy', topk=1)),
         or_head=dict(
             type='DPORHead',
             in_channel=128,
-            dropout=0,
+            dropout=0.,
             num_classes=3,
             loss=dict(
                 type='BCEWithLogitsLoss',
@@ -74,4 +74,20 @@ test_pipeline = [
     dict(type='Collect',
          keys=['imgs', 'feat_vector', 'feat_mask', 'labels', 'seq_len'])
     ]
+data = dict(
+    train=dict(
+              type='ImageSequenceDataset',
+              img_root='../data/amap_traffic_final_train_data',
+              ann_file='../user_data/enriched_annotations_train_final1.pkl',
+              prune=False,
+              key_frame_only=False,
+              transform=train_pipeline),
+    val=dict(
+        type='ImageSequenceDataset',
+        img_root='../data/amap_traffic_final_train_data',
+        ann_file='../user_data/enriched_annotations_train_final1.pkl',
+        prune=False,
+        key_frame_only=False,
+        transform=test_pipeline),
+    )
 load_from = None

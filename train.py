@@ -13,7 +13,7 @@ from mmcv.utils import Config
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.metrics import f1_score, confusion_matrix
 from mmcls.models import build_classifier
 from mmcls.datasets import build_dataset
@@ -133,6 +133,13 @@ def train(self, dataloader, **kwargs):
                     logs['score_%d'%cat_id] += [f1_scores[cat_id]]
                 torch.save(self.module.state_dict(), os.path.join(
                     save_dir, f'classifier_epoch{epoch+1}.pth'))
+        if kwargs.get('test_dataloader'):
+            result = eval(self, kwargs.get('test_dataloader'), **kwargs)
+            if rank == 0:
+                logs['score_test'] += [result['f1']]
+                f1_scores = result['f1_scores']
+                for cat_id in range(len(f1_scores)):
+                    logs['score_%d_test'%cat_id] += [f1_scores[cat_id]]
         lr_scheduler.step()
         if rank == 0:
             print(f'\nEpoch {epoch+1}/{max_epoch} lr: {cur_lr}')
@@ -179,11 +186,18 @@ if __name__ == '__main__':
         indices = np.arange(len(training_set.datasets[0]))
     else:
         indices = np.arange(len(training_set))
+        labels = np.array([training_set.get_cat_ids(_) for _ in indices])
+        # split train/test
+        train_indices, test_indices = next(StratifiedKFold(
+            6, shuffle=True, random_state=666).split(indices, labels))
     k = 5
-    # ensure the class distribution is same for training and validation sets
+    # cross validation
     kf = StratifiedKFold(k, shuffle=True, random_state=666)
-    labels = [training_set.get_cat_ids(_) for _ in range(len(training_set))]
-    for idx, (train_inds, val_inds) in enumerate(kf.split(indices, labels)):
+    for idx, (train_inds, val_inds) in enumerate(
+        kf.split(train_indices, labels[train_indices])
+        ):
+        train_inds = train_indices[train_inds] # map to sample index
+        val_inds = train_indices[val_inds] # map to sample index
         torch.manual_seed(666)
         torch.cuda.manual_seed_all(666)
         np.random.seed(666)
@@ -205,6 +219,8 @@ if __name__ == '__main__':
         #CombinedSampler(samplers[:2])) # for BBN
         val_loader = DataLoader(val_set, batch_size=bs, num_workers=4,
             sampler=DistributedSubsetSampler(val_inds, shuffle=False))
+        test_loader = DataLoader(val_set, batch_size=bs, num_workers=4,
+            sampler=DistributedSubsetSampler(test_indices, shuffle=False))
         model = build_classifier(cfg.model).to(args.local_rank)
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[args.local_rank], find_unused_parameters=True)
@@ -212,6 +228,7 @@ if __name__ == '__main__':
             load_checkpoint(model, cfg.load_from, map_location='cpu')
         output = train(model, train_loader,
             val_dataloader=val_loader,
+            test_dataloader=test_loader,
             log_iters=10,
             max_epoch=args.max_epoch,
             milestones=args.milestones,

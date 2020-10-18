@@ -8,6 +8,7 @@ import numpy as np
 import lightgbm
 from sklearn.metrics import f1_score, log_loss
 from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.decomposition import PCA
 
 def get_data(df):
     feats = defaultdict(lambda :defaultdict(list))
@@ -19,7 +20,7 @@ def get_data(df):
         frames = s["frames"]
         frames.sort(key=lambda x: x['frame_name'])
         key = [frame['frame_name'] for frame in frames].index(map_key)
-        dfeats = s['feats']['dnn_feats']
+        dfeats = s['feats'].get('dnn_feats', None)
         if dfeats is not None:
             for j, dfeat in enumerate(dfeats):
                 dnn_feats[f'dnn_feats_{j}'].append(dfeat)
@@ -129,15 +130,20 @@ def stacking(clf, train_x, train_y, test_x, clf_name, class_num=1, weights=None)
         by='importance', ascending=False)
     print(feature_importance)
     features = feature_importance.index.tolist()
-    return train, test, test_pre_all, np.mean(f1_scores), features
+    return train, test, test_pre_all, np.mean(f1_scores), feature_importance
 
 
 def lgb(x_train, y_train, x_valid, weights):
-    lgb_train, lgb_test, sb, cv_scores, features = stacking(
+    lgb_train, lgb_test, sb, cv_scores, feature_importance = stacking(
         lightgbm, x_train, y_train, x_valid, "lgb", 4, weights)
     
     # select important features
-    important_features = features[:int(len(features) * 0.7)]
+    feature_importance = feature_importance.loc[
+        feature_importance['importance'].isna() == False]
+    feature_importance = feature_importance.loc[
+        feature_importance['importance'] > 100]
+    important_features = feature_importance[
+        :int(len(feature_importance) * 0.7)].index.tolist()
     x_train = x_train[important_features]
     x_valid = x_valid[important_features]
     lgb_train, lgb_test, sb, cv_scores, features = stacking(
@@ -150,11 +156,11 @@ if __name__ == '__main__':
     data_root = '../data'
     user_data_root = '../user_data'
     train_json = pd.DataFrame(pd.read_pickle(os.path.join(
-        user_data_root, "enriched_annotations_train_final1_dnn.pkl")))
+        user_data_root, "enriched_annotations_train_final1_seg.pkl")))
     test_json = train_json
     # uncomment before submitting
     test_json = pd.DataFrame(pd.read_pickle(os.path.join(
-        user_data_root, "enriched_annotations_test_final_dnn.pkl")))
+        user_data_root, "enriched_annotations_test_final_seg.pkl")))
 
     train_df = get_data(train_json[:])
     weights = np.array([0.6, 5.0, 2.0, 0.4])
@@ -210,7 +216,10 @@ if __name__ == '__main__':
                      "closest_vehicle_depth_key",
                      "closest_vehicle_depth_gap",
                     ]
-    select_features += [f"dnn_feats_{j}" for j in range(128)] # dnn_feats dim
+    #select_features += [f"dnn_feats_{j}" for j in range(128)] # dnn_feats dim
+    select_features += [f"seg{j}_mean" for j in range(194)]
+    select_features += [f"seg{j}_std" for j in range(194)]
+    select_features += [f"seg{j}_key" for j in range(194)]
 
     train_x = train_df[select_features].copy()
     train_y = train_df['label']
@@ -225,7 +234,7 @@ if __name__ == '__main__':
 
     result_dic=dict(zip(sub["id"], sub["pred"]))
     with open(
-        os.path.join("/tcdata/amap_traffic_final_test_0906.json"),
+        os.path.join("/tcdata/amap_traffic_final_b_test_1009.json"),
         "r"
         ) as f:
         content = f.read()

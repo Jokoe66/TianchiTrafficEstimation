@@ -10,3 +10,12 @@
 [submodule "lib/mmclassification"]
 	path = lib/mmclassification
 	url = https://github.com/open-mmlab/mmclassification.git
+[submodule "lib/mseg-semantic"]
+	path = lib/mseg-semantic
+	url = https://github.com/Jokoe66/mseg-semantic.git
+[submodule "lib/apex"]
+	path = lib/apex
+	url = https://www.github.com/nvidia/apex
+[submodule "lib/mseg-api"]
+	path = lib/mseg-api
+	url = https://github.com/mseg-dataset/mseg-api.git
